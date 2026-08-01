@@ -1,5 +1,7 @@
 # VPS 部署说明
 
+重复部署可以直接使用 Codex 的 `vps-deploy` Skill。它从本机的 `C:\Users\Administrator\.codex\vps-deploy-config.json` 读取服务器元数据，再通过 SSH 拉取指定分支并重启 Docker Compose，不需要每次重新描述服务器。
+
 当前项目可以拆成两部分部署：
 
 - `designs/food-flow`：静态前端，可放 GitHub Pages
@@ -29,3 +31,5 @@ https://你的域名/api/douyin/parse
 docker build -t foodflow-api -f server/Dockerfile server
 docker run --env-file .env -p 4320:4320 foodflow-api
 ```
+
+Skill 的配置只保存主机、用户、端口、仓库、分支和远程目录，不保存 SSH 私钥或 API Key。第一次使用时需要提供这些非敏感信息，之后可直接说“部署到 VPS”。
