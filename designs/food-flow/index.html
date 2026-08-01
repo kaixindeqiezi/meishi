@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbf8f2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>做成 · 美食执行助手</title>
+  <style>
+    :root {
+      --paper: #fbf8f2;
+      --paper-2: #f4efe6;
+      --ink: #2e2a27;
+      --muted: #8b8178;
+      --line: rgba(65, 53, 44, 0.12);
+      --tomato: #d85b45;
+      --tomato-dark: #ac3f31;
+      --sage: #748a62;
+      --sage-light: #e5ebdd;
+      --yellow: #f4c968;
+      --shadow: 0 20px 50px rgba(76, 49, 31, 0.12);
+      --soft-shadow: 0 8px 24px rgba(76, 49, 31, 0.08);
+      --radius: 24px;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+      --serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    body { min-width: 320px; }
+    button, input, textarea, select { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    .app-shell { width: min(100%, 460px); min-height: 100vh; margin: 0 auto; background: var(--paper); position: relative; overflow-x: hidden; }
+    .topbar { padding: 22px 22px 10px; display: flex; justify-content: space-between; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 12px; background: var(--tomato); color: #fff; display: grid; place-items: center; font-weight: 800; transform: rotate(-6deg); box-shadow: 4px 4px 0 #efc0a8; }
+    .brand-name { font-weight: 800; letter-spacing: -0.04em; font-size: 19px; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .version-badge { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 999px; background: #f3e4d9; color: var(--tomato-dark); font-size: 9px; font-weight: 800; letter-spacing: .03em; margin-left: 4px; vertical-align: 1px; }
+    .icon-button { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--ink); box-shadow: var(--soft-shadow); display: grid; place-items: center; font-size: 18px; transition: transform .18s, background .18s; }
+    .icon-button:hover { transform: translateY(-2px); background: var(--paper-2); }
+    .content { padding: 6px 18px 110px; }
+    .screen { display: none; animation: fadeUp .28s ease both; }
+    .screen.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .eyebrow { color: var(--tomato); font-size: 12px; letter-spacing: .08em; font-weight: 800; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    .hero { padding: 20px 4px 18px; display: flex; justify-content: space-between; align-items: end; gap: 14px; }
+    .hero h1 { font-family: var(--serif); font-size: 34px; letter-spacing: -0.06em; line-height: 1.03; margin-top: 8px; }
+    .hero p { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 9px; }
+    .hero-stamp { min-width: 76px; height: 76px; border: 1px dashed #d9b2a1; border-radius: 50%; display: grid; place-items: center; text-align: center; color: var(--tomato-dark); font-family: var(--serif); font-size: 15px; line-height: 1.1; transform: rotate(8deg); }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin: 18px 4px 11px; }
+    .section-head h2 { font-size: 17px; letter-spacing: -0.04em; }
+    .text-button { background: transparent; color: var(--tomato); font-size: 12px; font-weight: 800; padding: 6px 0; }
+    .feature-card { border-radius: var(--radius); overflow: hidden; background: #2c2722; color: #fff; box-shadow: var(--shadow); position: relative; min-height: 256px; }
+    .feature-art { min-height: 256px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; background: radial-gradient(circle at 75% 24%, rgba(255, 210, 125, .92), transparent 20%), radial-gradient(circle at 35% 68%, rgba(226, 104, 58, .95), transparent 40%), linear-gradient(145deg, #915c3c 0%, #3a2926 50%, #1e201f 100%); }
+    .feature-art::after { content: ""; position: absolute; width: 210px; height: 150px; right: -30px; top: 28px; border-radius: 50%; border: 14px solid rgba(255, 224, 166, .30); transform: rotate(-18deg); box-shadow: 0 0 0 10px rgba(255, 224, 166, .08), inset 0 0 22px rgba(45, 30, 23, .25); }
+    .feature-meta { position: relative; z-index: 1; display: flex; gap: 7px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 999px; background: rgba(255,255,255,.16); backdrop-filter: blur(8px); font-size: 11px; color: inherit; }
+    .pill.light { background: #fff; color: var(--ink); }
+    .pill.sage { background: var(--sage-light); color: #4c6743; }
+    .feature-copy { position: relative; z-index: 1; max-width: 250px; }
+    .feature-copy h3 { font-family: var(--serif); font-size: 28px; line-height: 1.05; letter-spacing: -0.06em; }
+    .feature-copy p { color: rgba(255,255,255,.72); font-size: 12px; margin-top: 8px; line-height: 1.55; }
+    .feature-cta { position: absolute; z-index: 2; right: 18px; bottom: 18px; width: 46px; height: 46px; border-radius: 50%; background: #fff; color: var(--tomato-dark); font-size: 19px; box-shadow: 0 7px 18px rgba(0,0,0,.18); }
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .quick-card { background: var(--paper-2); border-radius: 18px; padding: 14px 12px; min-height: 93px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; transition: transform .2s, background .2s; }
+    .quick-card:hover { transform: translateY(-3px); background: #ede6da; }
+    .quick-icon { font-size: 21px; color: var(--tomato); }
+    .quick-card strong { font-size: 13px; letter-spacing: -0.03em; }
+    .quick-card span { color: var(--muted); font-size: 11px; }
+    .dish-list { display: grid; gap: 12px; }
+    .dish-card { background: #fff; border-radius: 20px; padding: 11px; display: flex; gap: 12px; align-items: center; box-shadow: 0 3px 18px rgba(76, 49, 31, 0.045); border: 1px solid rgba(65,53,44,.06); cursor: pointer; transition: transform .18s, box-shadow .18s; }
+    .dish-card:hover { transform: translateY(-2px); box-shadow: var(--soft-shadow); }
+    .dish-thumb { width: 74px; height: 74px; flex: 0 0 74px; border-radius: 15px; position: relative; overflow: hidden; display: flex; align-items: end; padding: 7px; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+    .thumb-pasta { background: radial-gradient(circle at 68% 30%, #ffe2a2 0 15%, transparent 16%), radial-gradient(circle at 47% 50%, #e39544 0 22%, transparent 23%), linear-gradient(135deg, #713f2f, #db7751); }
+    .thumb-chicken { background: radial-gradient(circle at 58% 40%, #ffdc85 0 20%, transparent 21%), linear-gradient(135deg, #5d724b, #d7a452); }
+    .thumb-tofu { background: radial-gradient(circle at 60% 43%, #f7e0b0 0 22%, transparent 23%), linear-gradient(135deg, #8e5c41, #b3a065); }
+    .thumb-soup { background: radial-gradient(circle at 50% 44%, #f3bf72 0 26%, transparent 27%), linear-gradient(135deg, #4f6d57, #d9894a); }
+    .dish-info { min-width: 0; flex: 1; }
+    .dish-title { font-size: 15px; font-weight: 800; letter-spacing: -0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dish-desc { color: var(--muted); font-size: 11px; line-height: 1.45; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .dish-tags { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+    .mini-tag { font-size: 10px; color: #74685e; background: var(--paper-2); border-radius: 999px; padding: 4px 7px; }
+    .mini-tag.green { color: #58714d; background: var(--sage-light); }
+    .empty { padding: 36px 18px; background: var(--paper-2); color: var(--muted); text-align: center; border-radius: 20px; font-size: 13px; line-height: 1.7; }
+    .page-title { padding: 18px 4px 16px; display: flex; justify-content: space-between; align-items: end; }
+    .page-title h1 { font-family: var(--serif); font-size: 31px; letter-spacing: -0.06em; }
+    .page-title p { color: var(--muted); font-size: 12px; margin-top: 7px; }
+    .primary-button { border-radius: 14px; background: var(--tomato); color: #fff; padding: 12px 14px; font-weight: 800; font-size: 13px; box-shadow: 0 8px 18px rgba(216,91,69,.22); transition: transform .18s, background .18s; }
+    .primary-button:hover { transform: translateY(-2px); background: var(--tomato-dark); }
+    .secondary-button { border-radius: 14px; background: var(--paper-2); color: var(--ink); padding: 12px 14px; font-weight: 800; font-size: 13px; }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 13px 14px; outline: none; color: var(--ink); margin-bottom: 12px; }
+    .search:focus { border-color: #d69785; box-shadow: 0 0 0 3px rgba(216,91,69,.1); }
+    .filter-row { display: flex; gap: 8px; overflow-x: auto; padding: 1px 0 3px; margin-bottom: 13px; scrollbar-width: none; }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter { flex: 0 0 auto; padding: 7px 11px; border-radius: 999px; background: var(--paper-2); color: var(--muted); font-size: 11px; font-weight: 700; }
+    .filter.active { background: var(--ink); color: #fff; }
+    .pantry-hero { border-radius: 22px; padding: 18px; background: var(--sage-light); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .pantry-hero h2 { font-family: var(--serif); font-size: 24px; letter-spacing: -0.05em; }
+    .pantry-hero p { margin-top: 5px; font-size: 11px; color: #58714d; line-height: 1.5; }
+    .pantry-hero-art { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle at 35% 34%, #f6d18a 0 14%, transparent 15%), radial-gradient(circle at 63% 65%, #d56b46 0 16%, transparent 17%), radial-gradient(circle at 67% 30%, #8da35e 0 15%, transparent 16%), #f7f1db; border: 6px solid rgba(255,255,255,.65); }
+    .ingredient-cloud { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ingredient { padding: 9px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 12px; display: inline-flex; align-items: center; gap: 7px; }
+    .ingredient.expiring { border-color: #e6bb82; background: #fff9ee; }
+    .ingredient-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); }
+    .ingredient.expiring .ingredient-dot { background: #d88d4c; }
+    .recommend-card { background: #fff; border-radius: 20px; padding: 15px; border: 1px solid rgba(65,53,44,.07); box-shadow: 0 3px 18px rgba(76, 49, 31, 0.045); }
+    .recommend-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+    .recommend-top h3 { font-size: 16px; letter-spacing: -0.04em; }
+    .match-score { color: #58714d; background: var(--sage-light); border-radius: 999px; padding: 6px 9px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .recommend-reason { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 7px; }
+    .match-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+    .match-item { font-size: 10px; border-radius: 999px; padding: 5px 8px; background: var(--sage-light); color: #58714d; }
+    .match-item.missing { background: #fff2e9; color: #a96644; }
+    .profile-card { background: #fff; border-radius: 22px; padding: 18px; box-shadow: var(--soft-shadow); }
+    .profile-head { display: flex; gap: 13px; align-items: center; }
+    .avatar { width: 54px; height: 54px; border-radius: 18px; background: #f0b29b; display: grid; place-items: center; color: #fff; font-size: 23px; font-weight: 900; transform: rotate(-5deg); }
+    .profile-head h2 { font-family: var(--serif); font-size: 24px; letter-spacing: -0.05em; }
+    .profile-head p { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .preference-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .preference-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .preference-row strong { font-size: 13px; }
+    .preference-row span { font-size: 12px; color: var(--muted); text-align: right; }
+    .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 15px; }
+    .stat { background: var(--paper-2); border-radius: 15px; padding: 12px 9px; }
+    .stat b { display: block; font-family: var(--serif); font-size: 23px; }
+    .stat span { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+    .changelog { display: grid; gap: 10px; }
+    .changelog-card { background: #fff; border-radius: 18px; padding: 15px; border: 1px solid rgba(65,53,44,.07); }
+    .changelog-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+    .changelog-version { color: var(--tomato); font-size: 12px; font-weight: 900; letter-spacing: .02em; }
+    .changelog-date { color: var(--muted); font-size: 10px; }
+    .changelog-title { font-size: 14px; font-weight: 800; margin-top: 5px; letter-spacing: -0.03em; }
+    .changelog-items { display: grid; gap: 6px; margin-top: 11px; }
+    .changelog-item { display: flex; gap: 8px; color: #6f6258; font-size: 11px; line-height: 1.5; }
+    .changelog-item::before { content: "＋"; color: var(--sage); font-weight: 900; }
+    .current-label { color: #58714d; background: var(--sage-light); padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 460px); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(65,53,44,.08); display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+    .nav-item { background: transparent; color: var(--muted); display: grid; place-items: center; gap: 4px; padding: 5px 0; font-size: 10px; font-weight: 700; border-radius: 13px; }
+    .nav-item .nav-icon { font-size: 18px; line-height: 1; }
+    .nav-item.active { color: var(--tomato); background: #fff; box-shadow: 0 4px 12px rgba(76,49,31,.07); }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(41,31,26,.44); display: none; align-items: end; justify-content: center; padding: 0; }
+    .modal-backdrop.open { display: flex; animation: fadeIn .2s ease both; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal { width: min(100%, 460px); max-height: 88vh; overflow: auto; background: var(--paper); border-radius: 28px 28px 0 0; padding: 14px 20px 28px; animation: slideUp .26s ease both; }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+    .modal-handle { width: 42px; height: 4px; background: #d7cdc3; border-radius: 999px; margin: 0 auto 17px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-head h2 { font-family: var(--serif); font-size: 25px; letter-spacing: -0.05em; }
+    .close-button { width: 32px; height: 32px; border-radius: 50%; background: var(--paper-2); color: var(--muted); font-size: 18px; }
+    .field { display: grid; gap: 7px; margin-top: 13px; }
+    .field label { font-size: 11px; font-weight: 800; color: #6f6258; }
+    .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line); border-radius: 13px; padding: 12px; background: #fff; color: var(--ink); outline: none; resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: #d69785; box-shadow: 0 0 0 3px rgba(216,91,69,.1); }
+    .modal-actions { display: flex; gap: 9px; margin-top: 18px; }
+    .modal-actions > * { flex: 1; }
+    .preview-dish { background: #fff; border-radius: 18px; padding: 13px; margin-top: 13px; display: flex; gap: 12px; border: 1px solid var(--line); }
+    .preview-dish .dish-thumb { width: 62px; height: 62px; flex-basis: 62px; }
+    .helper { color: var(--muted); font-size: 11px; line-height: 1.55; margin-top: 8px; }
+    .detail-modal { padding-bottom: 35px; }
+    .detail-art { height: 180px; border-radius: 22px; position: relative; overflow: hidden; color: #fff; padding: 16px; display: flex; align-items: end; background: radial-gradient(circle at 72% 30%, rgba(255, 212, 135,.85), transparent 18%), radial-gradient(circle at 34% 70%, rgba(225, 100, 56,.9), transparent 42%), linear-gradient(145deg,#845237,#2e2423); }
+    .detail-art::after { content: ""; position: absolute; width: 240px; height: 150px; right: -38px; top: 15px; border: 12px solid rgba(255,224,166,.26); border-radius: 50%; transform: rotate(-12deg); }
+    .detail-art h2, .detail-art p { position: relative; z-index: 1; }
+    .detail-art h2 { font-family: var(--serif); font-size: 28px; letter-spacing: -0.06em; }
+    .detail-art p { font-size: 11px; color: rgba(255,255,255,.78); margin-top: 5px; }
+    .detail-block { margin-top: 19px; }
+    .detail-block h3 { font-size: 14px; letter-spacing: -0.03em; margin-bottom: 10px; }
+    .ingredient-list { display: grid; gap: 8px; }
+    .ingredient-line { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #fff; font-size: 12px; }
+    .ingredient-line span { color: var(--muted); }
+    .step-list { display: grid; gap: 9px; }
+    .step { display: flex; gap: 10px; align-items: start; padding: 11px 12px; border-radius: 14px; background: #fff; font-size: 12px; line-height: 1.55; }
+    .step-number { width: 23px; height: 23px; flex: 0 0 23px; border-radius: 8px; background: var(--tomato); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+    .expected-card { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .expected-panel { min-height: 112px; border-radius: 16px; padding: 11px; color: #fff; display: flex; flex-direction: column; justify-content: end; overflow: hidden; position: relative; }
+    .expected-panel h4 { position: relative; z-index: 1; font-size: 11px; }
+    .expected-panel p { position: relative; z-index: 1; font-size: 10px; margin-top: 4px; color: rgba(255,255,255,.8); line-height: 1.4; }
+    .expected { background: linear-gradient(145deg,#bd6d43,#3f2a28); }
+    .actual { background: linear-gradient(145deg,#778665,#c59956); }
+    .cook-shell { position: fixed; inset: 0; z-index: 40; background: var(--paper); display: none; flex-direction: column; }
+    .cook-shell.open { display: flex; animation: fadeIn .2s ease both; }
+    .cook-top { padding: 18px 20px 10px; display: flex; justify-content: space-between; align-items: center; }
+    .cook-top strong { font-family: var(--serif); font-size: 22px; letter-spacing: -0.05em; }
+    .cook-body { flex: 1; overflow: auto; padding: 16px 21px 30px; }
+    .cook-kicker { color: var(--tomato); font-weight: 800; font-size: 12px; }
+    .cook-title { font-family: var(--serif); font-size: 38px; line-height: 1.02; letter-spacing: -0.07em; margin-top: 8px; }
+    .progress-track { height: 7px; border-radius: 999px; background: #e9dfd5; margin-top: 18px; overflow: hidden; }
+    .progress-value { height: 100%; background: var(--tomato); border-radius: inherit; transition: width .25s; }
+    .cook-step-card { margin-top: 25px; background: #fff; border-radius: 23px; padding: 19px; box-shadow: var(--soft-shadow); }
+    .cook-step-card .step-number { width: 35px; height: 35px; border-radius: 11px; font-size: 14px; }
+    .cook-step-card h3 { font-size: 20px; letter-spacing: -0.05em; margin-top: 16px; }
+    .cook-step-card p { font-size: 14px; color: #6f6258; line-height: 1.7; margin-top: 8px; }
+    .cook-tip { margin-top: 15px; padding: 12px 13px; border-radius: 14px; background: #fff8e9; color: #9a6f35; font-size: 11px; line-height: 1.6; }
+    .timer { margin-top: 17px; display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; border-radius: 15px; background: var(--paper-2); }
+    .timer strong { font-family: var(--serif); font-size: 25px; }
+    .timer button { background: var(--ink); color: #fff; padding: 8px 11px; border-radius: 10px; font-size: 11px; font-weight: 800; }
+    .cook-footer { padding: 12px 20px calc(15px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.95); border-top: 1px solid var(--line); display: flex; gap: 9px; }
+    .cook-footer button { flex: 1; }
+    .toast { position: fixed; z-index: 80; left: 50%; bottom: 89px; transform: translate(-50%, 15px); background: var(--ink); color: #fff; border-radius: 999px; padding: 11px 15px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .photo-drop { border: 1px dashed #d4b2a3; border-radius: 16px; padding: 20px 14px; text-align: center; color: var(--muted); font-size: 12px; background: #fffaf6; cursor: pointer; }
+    .photo-drop strong { display: block; color: var(--tomato); font-size: 20px; margin-bottom: 7px; }
+    .photo-preview { width: 100%; height: 150px; border-radius: 15px; object-fit: cover; display: none; margin-top: 10px; }
+    @media (min-width: 700px) {
+      body { background: #e9e1d6; padding: 24px; }
+      .app-shell { border-radius: 30px; min-height: calc(100vh - 48px); box-shadow: 0 18px 80px rgba(69,48,33,.16); }
+      .bottom-nav { position: absolute; bottom: 0; border-radius: 0 0 30px 30px; }
+      .modal-backdrop { align-items: center; padding: 20px; }
+      .modal { border-radius: 28px; max-height: 84vh; }
+      .cook-shell { width: min(100%, 460px); left: 50%; transform: translateX(-50%); border-radius: 30px; box-shadow: 0 18px 80px rgba(69,48,33,.16); }
+    }
+  </style>
+</head>
+<body lang="zh-CN">
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">做</div><div><div class="brand-name">做成 <span class="version-badge" id="brand-version">v0.2</span></div><div class="brand-sub">把想吃的，做出来</div></div></div>
+      <button class="icon-button" id="open-add" aria-label="添加菜谱">＋</button>
+    </header>
+
+    <div class="content">
+      <section class="screen active" id="screen-home" data-screen-label="首页">
+        <div class="hero"><div><div class="eyebrow">SATURDAY · 08.01</div><h1>今天，做点<br/>让自己开心的。</h1><p>从收藏夹里挑一道，今晚就把它做成。</p></div><div class="hero-stamp">本周<br/>已做 2 道</div></div>
+        <div class="section-head"><h2>今天推荐</h2><button class="text-button" data-nav="pantry">看更多 →</button></div>
+        <article class="feature-card" id="home-feature-card"><div class="feature-art"><div class="feature-meta"><span class="pill">98% 食材匹配</span><span class="pill">25 min</span></div><div class="feature-copy"><h3>奶油蒜香<br/>虾仁意面</h3><p>蒜香、奶油和微辣的平衡。你家现有食材刚好够。</p></div><button class="feature-cta" id="feature-start" aria-label="打开推荐菜谱">→</button></div></article>
+        <div class="section-head"><h2>快速开始</h2></div>
+        <div class="quick-grid"><button class="quick-card" data-action="add"><span class="quick-icon">↗</span><strong>记一道菜</strong><span>复制抖音链接</span></button><button class="quick-card" data-nav="pantry"><span class="quick-icon">◌</span><strong>看看能做什么</strong><span>按家中食材推荐</span></button><button class="quick-card" data-action="cook"><span class="quick-icon">◷</span><strong>继续上次</strong><span>香煎鸡腿饭 · 3/5</span></button></div>
+        <div class="section-head"><h2>最近收藏</h2><button class="text-button" data-nav="recipes">全部菜谱 →</button></div>
+        <div class="dish-list" id="home-dishes"></div>
+      </section>
+
+      <section class="screen" id="screen-recipes" data-screen-label="菜谱库">
+        <div class="page-title"><div><div class="eyebrow">MY RECIPES</div><h1>菜谱库</h1><p>收藏不是终点，做成才是。</p></div><button class="primary-button" data-action="add">＋ 添加</button></div>
+        <input class="search" id="recipe-search" placeholder="搜索菜名、食材或标签" />
+        <div class="filter-row"><button class="filter active" data-filter="all">全部 12</button><button class="filter" data-filter="todo">待做 9</button><button class="filter" data-filter="done">做过 3</button><button class="filter" data-filter="light">适合减脂</button></div>
+        <div class="dish-list" id="recipe-list"></div>
+      </section>
+
+      <section class="screen" id="screen-pantry" data-screen-label="食材">
+        <div class="page-title"><div><div class="eyebrow">WHAT'S IN THE KITCHEN</div><h1>家里有什么</h1><p>少买一点，也能多做几道。</p></div><button class="primary-button" data-action="pantry-add">＋ 食材</button></div>
+        <div class="pantry-hero"><div><h2>本周库存</h2><p id="pantry-summary">8 种食材 · 2 种快过期</p></div><div class="pantry-hero-art"></div></div>
+        <div class="section-head"><h2>我的食材</h2><button class="text-button" data-action="pantry-add">编辑 →</button></div>
+        <div class="ingredient-cloud" id="pantry-cloud"></div>
+        <div class="section-head"><h2>现在能做什么</h2><span class="mini-tag green">按匹配度排序</span></div>
+        <div class="dish-list" id="recommend-list"></div>
+      </section>
+
+      <section class="screen" id="screen-profile" data-screen-label="我的">
+        <div class="page-title"><div><div class="eyebrow">YOUR KITCHEN NOTES</div><h1>我的</h1><p>让每一次尝试，都留下点什么。</p></div></div>
+        <div class="profile-card"><div class="profile-head"><div class="avatar">林</div><div><h2>林同学的厨房</h2><p>从 2026 年 7 月开始记录</p></div></div><div class="stat-row"><div class="stat"><b id="stat-done">3</b><span>已做成</span></div><div class="stat"><b id="stat-saved">12</b><span>收藏菜谱</span></div><div class="stat"><b>82%</b><span>本周匹配</span></div></div><div class="preference-row"><strong>饮食目标</strong><span>轻盈一点，但不委屈自己</span></div><div class="preference-row"><strong>常用厨具</strong><span>平底锅 · 空气炸锅 · 电饭煲</span></div><div class="preference-row"><strong>不吃的食材</strong><span>香菜 · 芹菜</span></div></div>
+        <div class="section-head"><h2>我的偏好</h2></div>
+        <div class="profile-card"><div class="preference-row"><strong>减脂标签</strong><span class="mini-tag green">规则解释已开启</span></div><div class="preference-row"><strong>默认份量</strong><span>1 人份</span></div><div class="preference-row"><strong>最长烹饪时间</strong><span>45 分钟</span></div></div>
+        <div class="section-head"><h2>版本记录</h2><span class="current-label" id="current-version">当前 v0.2</span></div>
+        <div class="changelog" id="changelog-list"></div>
+      </section>
+    </div>
+
+    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" data-nav="home"><span class="nav-icon">⌂</span><span>今天</span></button><button class="nav-item" data-nav="recipes"><span class="nav-icon">▤</span><span>菜谱</span></button><button class="nav-item" data-nav="pantry"><span class="nav-icon">◌</span><span>食材</span></button><button class="nav-item" data-nav="profile"><span class="nav-icon">◎</span><span>我的</span></button></nav>
+  </main>
+
+  <div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-content"></div></div>
+  <div class="cook-shell" id="cook-shell"><div class="cook-top"><button class="icon-button" id="cook-close">×</button><strong>正在做 · 奶油蒜香虾仁意面</strong><span style="width:40px"></span></div><div class="cook-body"><div class="cook-kicker">STEP <span id="cook-step-current">1</span> / <span id="cook-step-total">5</span></div><h1 class="cook-title">跟着步骤，<br/>慢慢做。</h1><div class="progress-track"><div class="progress-value" id="cook-progress" style="width:20%"></div></div><div class="cook-step-card"><div class="step-number" id="cook-step-badge">1</div><h3 id="cook-step-title">煮一锅有盐的水</h3><p id="cook-step-desc">水沸后加一小撮盐，放入意面。按照包装时间少煮 1 分钟，让面芯保留一点弹性。</p><div class="cook-tip" id="cook-tip">视觉判断：面条中心还有一条细细的白芯，就是刚好。</div><div class="timer"><strong id="timer-value">08:00</strong><button id="timer-toggle">开始计时</button></div></div></div><div class="cook-footer"><button class="secondary-button" id="cook-prev">上一步</button><button class="primary-button" id="cook-next">完成这一步 →</button></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const defaultDishes = [
+      { id: 'pasta', title: '奶油蒜香虾仁意面', desc: '蒜香、奶油和微辣的平衡，酱汁要有挂壁感。', thumb: 'thumb-pasta', tags: ['25 min', '调整后适合'], light: true, done: false, source: '抖音 · 厨房小林', ingredients: [{name:'意面', amount:'100g'}, {name:'虾仁', amount:'120g'}, {name:'淡奶油', amount:'80ml'}, {name:'蒜', amount:'4 瓣'}, {name:'黑胡椒', amount:'适量'}], steps: [{title:'煮一锅有盐的水', desc:'水沸后加一小撮盐，放入意面。按照包装时间少煮 1 分钟，让面芯保留一点弹性。', tip:'视觉判断：面条中心还有一条细细的白芯，就是刚好。', time:480},{title:'把虾仁煎到变色', desc:'平底锅中放少量橄榄油，中火煎虾仁至两面变粉红，先盛出。', tip:'不要把虾煎老，刚变色即可。', time:180},{title:'炒香蒜末', desc:'用锅中余油小火炒蒜末，闻到香味后加入辣椒碎。', tip:'蒜末微微金黄就好，颜色太深会发苦。', time:90},{title:'收出奶油酱汁', desc:'倒入淡奶油和一小勺煮面水，小火搅匀至酱汁浓稠。', tip:'酱汁能薄薄挂在勺背，就是刚好。', time:180},{title:'拌面，完成', desc:'放入意面和虾仁，撒黑胡椒与欧芹碎，拌匀后立即装盘。', tip:'装盘后再撒一点黑胡椒，香气会更立体。', time:60}], expected:'表面有奶油光泽，虾仁粉红紧实，酱汁能薄薄挂壁。' },
+      { id: 'chicken', title: '香煎鸡腿饭', desc: '皮脆肉嫩，配一碗热米饭和清爽蔬菜。', thumb: 'thumb-chicken', tags: ['35 min', '已做过'], light: true, done: true, source: '抖音 · 一人食记', ingredients: [{name:'去骨鸡腿', amount:'1 只'}, {name:'米饭', amount:'1 碗'}, {name:'西兰花', amount:'半颗'}, {name:'生抽', amount:'1 勺'}], steps: [{title:'鸡腿擦干腌制', desc:'鸡腿用厨房纸擦干，撒盐和黑胡椒，皮面朝上腌 10 分钟。', tip:'皮越干，越容易煎出脆壳。', time:600},{title:'冷锅下鸡腿', desc:'不放油，鸡皮朝下冷锅入锅，中小火慢慢煎出油脂。', tip:'听到滋滋声后不要频繁翻面。', time:600},{title:'翻面收熟', desc:'鸡皮金黄后翻面，加入生抽和少量水，盖盖焖熟。', tip:'中心温度达到 74°C 更稳妥。', time:420},{title:'装盘', desc:'米饭铺底，鸡腿切条，配上焯好的西兰花即可。', tip:'静置 3 分钟再切，肉汁更稳定。', time:180}], expected:'鸡皮金黄酥脆，切开后肉汁清亮，米饭颗粒分明。', actual:'第一次煎得很成功，下次酱油可以少半勺。' },
+      { id: 'tofu', title: '番茄滑蛋豆腐', desc: '十分钟快手菜，酸甜、柔软，拌饭很快乐。', thumb: 'thumb-tofu', tags: ['15 min', '适合减脂'], light: true, done: false, source: '抖音 · 今天吃什么', ingredients: [{name:'番茄', amount:'2 个'}, {name:'嫩豆腐', amount:'1 盒'}, {name:'鸡蛋', amount:'2 个'}, {name:'葱', amount:'适量'}], steps: [{title:'番茄切块', desc:'番茄切成一口大小，保留汁水。鸡蛋加少量盐打散。', tip:'番茄越熟，天然甜味越足。', time:120},{title:'炒出番茄汁', desc:'少油下锅，中火炒番茄至出汁，加半碗水煮开。', tip:'用锅铲轻压番茄，汁水会更快出来。', time:300},{title:'放入豆腐', desc:'豆腐切块轻轻放入锅中，小火煮 2 分钟让它入味。', tip:'不要大力翻动，避免豆腐碎掉。', time:120},{title:'淋入蛋液', desc:'转小火淋入蛋液，边缘凝固后轻推成大块滑蛋。', tip:'蛋液七成凝固就关火，余温会继续熟。', time:120}], expected:'番茄汁红亮，蛋块蓬松，豆腐完整且吸满汤汁。' },
+      { id: 'soup', title: '玉米鸡胸浓汤', desc: '高蛋白、低负担，适合工作日晚餐。', thumb: 'thumb-soup', tags: ['30 min', '适合减脂'], light: true, done: false, source: '抖音 · 轻食研究所', ingredients: [{name:'鸡胸肉', amount:'150g'}, {name:'玉米', amount:'1 根'}, {name:'牛奶', amount:'150ml'}, {name:'蘑菇', amount:'6 朵'}], steps: [{title:'鸡胸切丁腌制', desc:'鸡胸切小丁，加黑胡椒和少量盐抓匀。', tip:'切小一点更容易保持嫩度。', time:300},{title:'炒香蘑菇', desc:'锅中放少量油，炒蘑菇至出水并略微上色。', tip:'蘑菇不要一开始就加盐，才更容易上色。', time:240},{title:'加入玉米和牛奶', desc:'倒入玉米粒、牛奶和适量水，小火煮至沸腾。', tip:'牛奶入锅后保持小火，避免剧烈沸腾。', time:480},{title:'放鸡胸煮熟', desc:'加入鸡胸肉丁煮至完全变白，关火调味。', tip:'鸡肉刚熟就关火，汤里余温会继续加热。', time:300}], expected:'汤色奶白，玉米清甜，鸡胸肉小块柔嫩不柴。' }
+    ];
+    const defaultPantry = [
+      {name:'意面', expiring:false}, {name:'虾仁', expiring:false}, {name:'蒜', expiring:false}, {name:'番茄', expiring:true}, {name:'鸡蛋', expiring:false}, {name:'嫩豆腐', expiring:true}, {name:'西兰花', expiring:true}, {name:'黑胡椒', expiring:false}
+    ];
+    const APP_VERSION = 'v0.2';
+    const CHANGELOG = [
+      {version:'v0.2', date:'2026-08-01', title:'让草稿真正变成菜谱', current:true, items:['AI 草稿支持确认并正式入库','成品照片会保存，并在详情页回看','库存食材可直接切换“快过期”状态','菜谱筛选数量随数据动态更新','补充 PWA 入口和第一版运行说明']},
+      {version:'v0.1', date:'2026-08-01', title:'跑通从种草到做成的闭环', items:['菜谱库、搜索和标签筛选','复制抖音链接生成可校对的菜谱草稿','家中食材库存与匹配推荐','分步骤烹饪模式和计时器','成品评分、备注与浏览器本地持久化']}
+    ];
+    const state = {
+      dishes: JSON.parse(localStorage.getItem('foodflow-dishes') || 'null') || defaultDishes,
+      pantry: JSON.parse(localStorage.getItem('foodflow-pantry') || 'null') || defaultPantry,
+      activeScreen: 'home', filter: 'all', search: '', detailDishId: null, cookDishId: 'pasta', cookStep: 0, timer: 0, timerRunning: false, timerInterval: null
+    };
+    const $ = (s, root=document) => root.querySelector(s);
+    const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+    function persist() { localStorage.setItem('foodflow-dishes', JSON.stringify(state.dishes)); localStorage.setItem('foodflow-pantry', JSON.stringify(state.pantry)); }
+    function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>el.classList.remove('show'), 2300); }
+    function showScreen(name) { state.activeScreen = name; $$('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`)); $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === name)); renderAll(); window.scrollTo({top:0, behavior:'smooth'}); }
+    function dishCard(dish, compact=false) { return `<article class="dish-card" data-dish-id="${dish.id}"><div class="dish-thumb ${dish.thumb}"><span>${dish.done ? '已做过' : '待做'}</span></div><div class="dish-info"><div class="dish-title">${dish.title}</div><div class="dish-desc">${dish.desc}</div><div class="dish-tags">${dish.tags.map((t,i)=>`<span class="mini-tag ${dish.light && i===1 ? 'green':''}">${t}</span>`).join('')}</div></div><span style="color:#b4a79d;font-size:18px">›</span></article>`; }
+    function renderHome() { $('#home-dishes').innerHTML = state.dishes.slice(0,3).map(dishCard).join(''); }
+    function renderRecipes() { const q = state.search.toLowerCase(); const filtered = state.dishes.filter(d => { const hit = !q || [d.title,d.desc,d.source,...d.tags,...d.ingredients.map(i=>i.name)].join(' ').toLowerCase().includes(q); const f = state.filter === 'all' || (state.filter === 'todo' && !d.done) || (state.filter === 'done' && d.done) || (state.filter === 'light' && d.light); return hit && f; }); $('#recipe-list').innerHTML = filtered.length ? filtered.map(dishCard).join('') : '<div class="empty">还没有找到这道菜。<br/>试试换个关键词，或把它从抖音收藏进来。</div>'; const counts = {all: state.dishes.length, todo: state.dishes.filter(d=>!d.done).length, done: state.dishes.filter(d=>d.done).length, light: state.dishes.filter(d=>d.light).length}; $('[data-filter="all"]').textContent = `全部 ${counts.all}`; $('[data-filter="todo"]').textContent = `待做 ${counts.todo}`; $('[data-filter="done"]').textContent = `做过 ${counts.done}`; $('[data-filter="light"]').textContent = `适合减脂 ${counts.light}`; $('.filter.active')?.classList.remove('active'); $(`[data-filter="${state.filter}"]`)?.classList.add('active'); }
+    function renderPantry() { const expiring = state.pantry.filter(i=>i.expiring).length; $('#pantry-summary').textContent = `${state.pantry.length} 种食材 · ${expiring} 种快过期`; $('#pantry-cloud').innerHTML = state.pantry.map(i=>`<button class="ingredient ${i.expiring ? 'expiring':''}" data-pantry-name="${i.name}"><span class="ingredient-dot"></span>${i.name}${i.expiring ? ' · 快过期':''}</button>`).join(''); const names = new Set(state.pantry.map(i=>i.name)); const scored = state.dishes.map(d => { const matched = d.ingredients.filter(i=>names.has(i.name)); const missing = d.ingredients.filter(i=>!names.has(i.name)); return {...d, matched, missing, score: Math.round(matched.length/d.ingredients.length*100)}; }).sort((a,b)=>b.score-a.score); $('#recommend-list').innerHTML = scored.slice(0,3).map(d=>`<article class="recommend-card" data-dish-id="${d.id}"><div class="recommend-top"><h3>${d.title}</h3><span class="match-score">${d.score}% 匹配</span></div><p class="recommend-reason">${d.score >= 80 ? '现在就能做，家里的食材刚好够。' : `补 ${d.missing.slice(0,2).map(i=>i.name).join('、')} 就能做。`}${d.missing.length === 0 ? ' 还可以优先消耗快过期食材。' : ''}</p><div class="match-list">${d.matched.map(i=>`<span class="match-item">有 · ${i.name}</span>`).join('')}${d.missing.map(i=>`<span class="match-item missing">缺 · ${i.name}</span>`).join('')}</div></article>`).join(''); }
+    function renderProfile() { $('#stat-done').textContent = state.dishes.filter(d=>d.done).length; $('#stat-saved').textContent = state.dishes.length; $('#brand-version').textContent = APP_VERSION; $('#current-version').textContent = `当前 ${APP_VERSION}`; $('#changelog-list').innerHTML = CHANGELOG.map(log=>`<article class="changelog-card"><div class="changelog-head"><div><div class="changelog-version">${log.version}</div><div class="changelog-title">${log.title}</div></div>${log.current ? '<span class="current-label">当前版本</span>' : `<span class="changelog-date">${log.date}</span>`}</div><div class="changelog-items">${log.items.map(item=>`<div class="changelog-item">${item}</div>`).join('')}</div></article>`).join(''); }
+    function renderAll() { renderHome(); renderRecipes(); renderPantry(); renderProfile(); bindDishClicks(); }
+    function bindDishClicks() { $$('[data-dish-id]').forEach(el=>el.onclick = () => openDetail(el.dataset.dishId)); $$('[data-pantry-name]').forEach(el=>el.onclick = () => { const item = state.pantry.find(i=>i.name === el.dataset.pantryName); if (!item) return; item.expiring = !item.expiring; persist(); renderPantry(); bindDishClicks(); toast(item.expiring ? `${item.name} 已标记为快过期` : `${item.name} 已恢复为新鲜库存`); }); }
+    function openModal(html) { $('#modal-content').innerHTML = html; $('#modal-backdrop').classList.add('open'); }
+    function closeModal() { $('#modal-backdrop').classList.remove('open'); }
+    function openAddModal() { openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>记一道想做的菜</h2><button class="close-button" data-close>×</button></div><div class="field"><label>抖音链接 / 分享口令</label><input id="new-link" placeholder="粘贴链接，或输入分享口令" autofocus /></div><div class="field"><label>也可以补充一句你记得的</label><textarea id="new-note" rows="3" placeholder="比如：博主说空气炸锅 180°C 12 分钟"></textarea></div><p class="helper">AI 会先生成一份可校对的菜谱草稿。没有办法读取的视频内容，也可以用截图或文字补充。</p><div class="modal-actions"><button class="secondary-button" data-close>先不记了</button><button class="primary-button" id="save-draft">生成菜谱草稿</button></div>`); $('#save-draft').onclick = () => { const link = $('#new-link').value.trim(); const note = $('#new-note').value.trim(); const id = `draft-${Date.now()}`; state.dishes.unshift({id,title: link ? '蒜香番茄虾仁（待确认）' : '我的新菜谱（待确认）',desc: note || 'AI 已生成草稿，确认食材和步骤后再开始做。',thumb:'thumb-pasta',tags:['待确认','AI 草稿'],light:false,done:false,source:link || '手动记录',ingredients:[{name:'虾仁',amount:'120g'},{name:'番茄',amount:'2 个'},{name:'蒜',amount:'3 瓣'}],steps:[{title:'确认菜谱信息',desc:'先根据原视频或截图，补齐食材用量和烹饪步骤。',tip:'确认完成后再开始做，避免漏掉关键调味。',time:120}],expected:'完成后补充你看到的成品样子。'}); persist(); closeModal(); renderAll(); showScreen('recipes'); toast('已生成草稿，确认后就可以开做'); }; }
+    function openPantryModal() { openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>加进家里的食材</h2><button class="close-button" data-close>×</button></div><div class="field"><label>食材名称</label><input id="pantry-name" placeholder="例如：鸡胸肉" autofocus /></div><div class="field"><label>状态</label><select id="pantry-status"><option value="fresh">现在新鲜</option><option value="expiring">快过期，优先用掉</option></select></div><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="save-pantry">加入库存</button></div>`); $('#save-pantry').onclick = () => { const name = $('#pantry-name').value.trim(); if (!name) return toast('先写下食材名称'); if (!state.pantry.some(i=>i.name===name)) { state.pantry.push({name,expiring:$('#pantry-status').value==='expiring'}); persist(); renderAll(); } closeModal(); toast(`已把 ${name} 放进库存`); }; }
+    function openDetail(id) { const dish = state.dishes.find(d=>d.id===id); if (!dish) return; const isDraft = dish.tags.includes('待确认') || dish.title.includes('待确认'); const actualStyle = dish.actualPhoto ? `style="background-image:linear-gradient(145deg,rgba(44,35,31,.14),rgba(44,35,31,.56)),url('${dish.actualPhoto}');background-size:cover;background-position:center"` : ''; state.detailDishId = id; openModal(`<div class="modal-handle"></div><div class="detail-modal"><div class="modal-head"><span class="pill ${isDraft ? '' : 'sage'}">${isDraft ? 'AI 草稿 · 待确认' : (dish.light ? '规则判断 · 调整后适合' : '待确认标签')}</span><button class="close-button" data-close>×</button></div><div class="detail-art ${dish.thumb}"><div><h2>${dish.title}</h2><p>${dish.source} · ${dish.tags[0] || '待做'}</p></div></div>${isDraft ? '<p class="helper">先确认食材和步骤，再把它变成可以随时开始的正式菜谱。</p>' : ''}<div class="detail-block"><h3>做完是什么样</h3><div class="expected-card"><div class="expected-panel expected"><h4>预期成品</h4><p>${dish.expected}</p></div><div class="expected-panel actual" ${actualStyle}><h4>${dish.actual ? '你的成品' : '做完后再记录'}</h4><p>${dish.actual || '上传照片，留下自己的经验'}</p></div></div></div><div class="detail-block"><h3>食材清单</h3><div class="ingredient-list">${dish.ingredients.map(i=>`<div class="ingredient-line"><b>${i.name}</b><span>${i.amount}</span></div>`).join('')}</div></div><div class="detail-block"><h3>做法步骤</h3><div class="step-list">${dish.steps.map((s,i)=>`<div class="step"><span class="step-number">${i+1}</span><span>${s.title}<br/><span style="color:#8b8178">${s.desc}</span></span></div>`).join('')}</div></div><div class="detail-block"><h3>减脂判断</h3><div class="recommend-card"><div class="recommend-top"><b>${dish.light ? '调整后适合' : '信息不足，需确认'}</b><span class="match-score">规则解释</span></div><p class="recommend-reason">${dish.light ? '控制用油并搭配足量蔬菜；奶油或酱汁建议按份量使用。' : '补充完整用量后，系统会根据油、糖、盐和烹饪方式给出更准确的建议。'}</p></div></div><div class="modal-actions">${isDraft ? '<button class="primary-button" data-action="confirm-draft">确认并入库</button>' : '<button class="secondary-button" data-action="cook-detail">开始做菜</button><button class="primary-button" data-action="log-detail">记录成品</button>'}</div></div>`); $$('[data-action="confirm-draft"]').forEach(b=>b.onclick=()=>{ dish.tags = ['待做','已确认']; dish.title = dish.title.replace('（待确认）',''); dish.draftConfirmed = true; persist(); closeModal(); renderAll(); toast('已确认入库，现在可以开始做这道菜'); }); $$('[data-action="cook-detail"]').forEach(b=>b.onclick=()=>{ closeModal(); openCook(id); }); $$('[data-action="log-detail"]').forEach(b=>b.onclick=()=>openLogModal(id)); }
+    function openLogModal(id) { const dish = state.dishes.find(d=>d.id===id); let pendingPhoto = dish.actualPhoto || ''; openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>这次做得怎么样？</h2><button class="close-button" data-close>×</button></div><p class="helper" style="margin-top:-5px">${dish.title} · 把真实经验留下，下次会更好做。</p><div class="field"><label>成品照片（可选）</label><label class="photo-drop" for="photo-input"><strong>＋</strong>点击上传，记录这一盘的样子<input id="photo-input" type="file" accept="image/*" hidden /></label><img class="photo-preview" id="photo-preview" alt="成品预览" ${dish.actualPhoto ? `src="${dish.actualPhoto}" style="display:block"` : ''} /></div><div class="field"><label>给这次打几分</label><select id="cook-rating"><option value="5">5 · 超出预期</option><option value="4">4 · 下次还会做</option><option value="3">3 · 还可以</option><option value="2">2 · 需要调整</option><option value="1">1 · 再试一次</option></select></div><div class="field"><label>留一句经验</label><textarea id="cook-note" rows="3" placeholder="比如：虾仁很嫩，但酱汁可以再收稠一点">${dish.actual || ''}</textarea></div><div class="modal-actions"><button class="secondary-button" data-close>稍后记录</button><button class="primary-button" id="save-log">保存这次经验</button></div>`); $('#photo-input').onchange = (e)=>{ const file=e.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=()=>{ pendingPhoto = reader.result; $('#photo-preview').src=reader.result; $('#photo-preview').style.display='block'; }; reader.readAsDataURL(file); }; $('#save-log').onclick=()=>{ dish.done=true; dish.actual=$('#cook-note').value.trim() || `这次给了 ${$('#cook-rating').value} 分，下次继续优化。`; dish.actualPhoto = pendingPhoto; persist(); closeModal(); renderAll(); toast('已记录成品，这道菜变成你的经验了'); }; }
+    function openCook(id='pasta') { const dish=state.dishes.find(d=>d.id===id) || state.dishes[0]; state.cookDishId=dish.id; state.cookStep=0; state.timer=0; $('#cook-shell').classList.add('open'); renderCook(); }
+    function renderCook(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); const s=dish.steps[state.cookStep]; $('#cook-step-current').textContent=state.cookStep+1; $('#cook-step-total').textContent=dish.steps.length; $('#cook-progress').style.width=`${((state.cookStep+1)/dish.steps.length)*100}%`; $('#cook-step-badge').textContent=state.cookStep+1; $('#cook-step-title').textContent=s.title; $('#cook-step-desc').textContent=s.desc; $('#cook-tip').textContent=`视觉判断：${s.tip}`; $('#cook-next').textContent=state.cookStep===dish.steps.length-1?'完成并记录成品 →':'完成这一步 →'; $('#cook-prev').disabled=state.cookStep===0; $('#cook-prev').style.opacity=state.cookStep===0?.45:1; $('#timer-value').textContent=formatTime(state.timer || s.time); $('#timer-toggle').textContent=state.timerRunning?'暂停计时':'开始计时'; }
+    function formatTime(sec){ const m=Math.floor(sec/60).toString().padStart(2,'0'); const s=(sec%60).toString().padStart(2,'0'); return `${m}:${s}`; }
+    function startTimer(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); if(!state.timer) state.timer=dish.steps[state.cookStep].time; state.timerRunning=!state.timerRunning; clearInterval(state.timerInterval); if(state.timerRunning){ state.timerInterval=setInterval(()=>{ if(state.timer>0){state.timer--; renderCook();} else {state.timerRunning=false; clearInterval(state.timerInterval); toast('计时完成，看看锅里的状态'); renderCook();}},1000); } renderCook(); }
+    function finishCook(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); $('#cook-shell').classList.remove('open'); clearInterval(state.timerInterval); state.timerRunning=false; openLogModal(dish.id); }
+    $$('.nav-item, [data-nav]').forEach(el=>el.onclick=()=>showScreen(el.dataset.nav));
+    $$('[data-action="add"]').forEach(el=>el.onclick=openAddModal); $$('[data-action="pantry-add"]').forEach(el=>el.onclick=openPantryModal); $$('[data-action="cook"]').forEach(el=>el.onclick=()=>openCook('chicken')); $('#open-add').onclick=openAddModal; $('#feature-start').onclick=()=>openDetail('pasta');
+    $('#recipe-search').oninput=(e)=>{state.search=e.target.value;renderRecipes();bindDishClicks();}; $$('.filter').forEach(el=>el.onclick=()=>{state.filter=el.dataset.filter;renderRecipes();bindDishClicks();});
+    $('#modal-backdrop').onclick=(e)=>{if(e.target.id==='modal-backdrop')closeModal();}; document.addEventListener('click', e=>{if(e.target.matches('[data-close]'))closeModal();});
+    $('#cook-close').onclick=()=>{$('#cook-shell').classList.remove('open');clearInterval(state.timerInterval);state.timerRunning=false;}; $('#cook-prev').onclick=()=>{if(state.cookStep>0){state.cookStep--;state.timer=0;renderCook();}}; $('#cook-next').onclick=()=>{const dish=state.dishes.find(d=>d.id===state.cookDishId);if(state.cookStep<dish.steps.length-1){state.cookStep++;state.timer=0;renderCook();}else finishCook();}; $('#timer-toggle').onclick=startTimer;
+    renderAll();
+  </script>
+</body>
+</html>

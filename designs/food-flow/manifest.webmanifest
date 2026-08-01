@@ -1,0 +1,10 @@
+{
+  "name": "做成 · 美食执行助手",
+  "short_name": "做成",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fbf8f2",
+  "theme_color": "#d85b45",
+  "description": "把想吃的，从收藏夹做成餐桌上的一盘。"
+}
