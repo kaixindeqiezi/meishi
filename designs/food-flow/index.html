@@ -239,7 +239,7 @@
 <body lang="zh-CN">
   <main class="app-shell">
     <header class="topbar">
-      <div class="brand"><div class="brand-mark">做</div><div><div class="brand-name">做成 <span class="version-badge" id="brand-version">v0.6</span></div><div class="brand-sub">把想吃的，做出来</div></div></div>
+      <div class="brand"><div class="brand-mark">做</div><div><div class="brand-name">做成 <span class="version-badge" id="brand-version">v0.7</span></div><div class="brand-sub">把想吃的，做出来</div></div></div>
       <button class="icon-button" id="open-add" aria-label="添加菜谱">＋</button>
     </header>
 
@@ -277,7 +277,7 @@
         <div class="profile-card"><div class="profile-head"><div class="avatar">林</div><div><h2>林同学的厨房</h2><p>从 2026 年 7 月开始记录</p></div></div><div class="stat-row"><div class="stat"><b id="stat-done">3</b><span>已做成</span></div><div class="stat"><b id="stat-saved">12</b><span>收藏菜谱</span></div><div class="stat"><b>82%</b><span>本周匹配</span></div></div><div class="preference-row"><strong>饮食目标</strong><span>轻盈一点，但不委屈自己</span></div><div class="preference-row"><strong>常用厨具</strong><span>平底锅 · 空气炸锅 · 电饭煲</span></div><div class="preference-row"><strong>不吃的食材</strong><span>香菜 · 芹菜</span></div></div>
         <div class="section-head"><h2>我的偏好</h2></div>
         <div class="profile-card"><div class="preference-row"><strong>减脂标签</strong><span class="mini-tag green">规则解释已开启</span></div><div class="preference-row"><strong>默认份量</strong><span>1 人份</span></div><div class="preference-row"><strong>最长烹饪时间</strong><span>45 分钟</span></div></div>
-        <div class="section-head"><h2>版本记录</h2><span class="current-label" id="current-version">当前 v0.6</span></div>
+        <div class="section-head"><h2>版本记录</h2><span class="current-label" id="current-version">当前 v0.7</span></div>
         <div class="changelog" id="changelog-list"></div>
       </section>
     </div>
@@ -290,6 +290,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    window.FOODFLOW_API_URL = window.FOODFLOW_API_URL || 'http://localhost:4320/api/douyin/parse';
     const defaultDishes = [
       { id: 'pasta', title: '奶油蒜香虾仁意面', desc: '蒜香、奶油和微辣的平衡，酱汁要有挂壁感。', thumb: 'thumb-pasta', tags: ['25 min', '调整后适合'], light: true, done: false, source: '抖音 · 厨房小林', ingredients: [{name:'意面', amount:'100g'}, {name:'虾仁', amount:'120g'}, {name:'淡奶油', amount:'80ml'}, {name:'蒜', amount:'4 瓣'}, {name:'黑胡椒', amount:'适量'}], steps: [{title:'煮一锅有盐的水', desc:'水沸后加一小撮盐，放入意面。按照包装时间少煮 1 分钟，让面芯保留一点弹性。', tip:'视觉判断：面条中心还有一条细细的白芯，就是刚好。', time:480},{title:'把虾仁煎到变色', desc:'平底锅中放少量橄榄油，中火煎虾仁至两面变粉红，先盛出。', tip:'不要把虾煎老，刚变色即可。', time:180},{title:'炒香蒜末', desc:'用锅中余油小火炒蒜末，闻到香味后加入辣椒碎。', tip:'蒜末微微金黄就好，颜色太深会发苦。', time:90},{title:'收出奶油酱汁', desc:'倒入淡奶油和一小勺煮面水，小火搅匀至酱汁浓稠。', tip:'酱汁能薄薄挂在勺背，就是刚好。', time:180},{title:'拌面，完成', desc:'放入意面和虾仁，撒黑胡椒与欧芹碎，拌匀后立即装盘。', tip:'装盘后再撒一点黑胡椒，香气会更立体。', time:60}], expected:'表面有奶油光泽，虾仁粉红紧实，酱汁能薄薄挂壁。' },
       { id: 'chicken', title: '香煎鸡腿饭', desc: '皮脆肉嫩，配一碗热米饭和清爽蔬菜。', thumb: 'thumb-chicken', tags: ['35 min', '已做过'], light: true, done: true, source: '抖音 · 一人食记', ingredients: [{name:'去骨鸡腿', amount:'1 只'}, {name:'米饭', amount:'1 碗'}, {name:'西兰花', amount:'半颗'}, {name:'生抽', amount:'1 勺'}], steps: [{title:'鸡腿擦干腌制', desc:'鸡腿用厨房纸擦干，撒盐和黑胡椒，皮面朝上腌 10 分钟。', tip:'皮越干，越容易煎出脆壳。', time:600},{title:'冷锅下鸡腿', desc:'不放油，鸡皮朝下冷锅入锅，中小火慢慢煎出油脂。', tip:'听到滋滋声后不要频繁翻面。', time:600},{title:'翻面收熟', desc:'鸡皮金黄后翻面，加入生抽和少量水，盖盖焖熟。', tip:'中心温度达到 74°C 更稳妥。', time:420},{title:'装盘', desc:'米饭铺底，鸡腿切条，配上焯好的西兰花即可。', tip:'静置 3 分钟再切，肉汁更稳定。', time:180}], expected:'鸡皮金黄酥脆，切开后肉汁清亮，米饭颗粒分明。', actual:'第一次煎得很成功，下次酱油可以少半勺。' },
@@ -301,9 +302,10 @@
     ];
     const DISH_IMAGES = {pasta:'assets/hero-pasta.png', chicken:'assets/chicken-rice.png', tofu:'assets/tomato-tofu.png', soup:'assets/corn-chicken-soup.png'};
     const dishImage = dish => dish.image || DISH_IMAGES[dish.id] || '';
-    const APP_VERSION = 'v0.6';
+    const APP_VERSION = 'v0.7';
     const CHANGELOG = [
-      {version:'v0.6', date:'2026-08-01', title:'把抖音收藏带回菜谱库', current:true, items:['支持粘贴抖音短链、完整链接和分享口令','识别来源、博主和原链接，并保存到菜谱草稿','支持文字补充与截图兜底，视频打不开也能记录','生成草稿后进入人工校对，确认后再正式入库']},
+      {version:'v0.7', date:'2026-08-01', title:'为抖音解析接上后端接口边界', current:true, items:['前端会优先请求 /api/douyin/parse 解析服务','解析服务不可用时自动回退到本地草稿流程','新增可配置的本地 Douyin API 和健康检查接口','预留授权解析供应商，不在浏览器端直接抓取视频']},
+      {version:'v0.6', date:'2026-08-01', title:'把抖音收藏带回菜谱库', items:['支持粘贴抖音短链、完整链接和分享口令','识别来源、博主和原链接，并保存到菜谱草稿','支持文字补充与截图兜底，视频打不开也能记录','生成草稿后进入人工校对，确认后再正式入库']},
       {version:'v0.5', date:'2026-08-01', title:'从推荐到购物，一步接上', items:['推荐菜品可以直接加入购物清单','自动合并重复食材，保留菜品来源','购物项支持勾选已购买','支持一键清空购物清单并本地保存']},
       {version:'v0.4', date:'2026-08-01', title:'让每道菜先有一张成品图', items:['为示例菜品生成真实成品摄影图','首页推荐卡改用真实菜品照片','菜谱缩略图和详情页统一使用成品图','保留图片映射层，后续可替换为真实文生图 API']},
       {version:'v0.3', date:'2026-08-01', title:'让草稿先校对，再成为正式菜谱', items:['草稿支持编辑菜名和成品预期','支持逐行校对食材、用量和步骤','保存后自动标记为已确认并入库','保留直接确认入口，适合快速整理']},
@@ -390,6 +392,40 @@
     function formatTime(sec){ const m=Math.floor(sec/60).toString().padStart(2,'0'); const s=(sec%60).toString().padStart(2,'0'); return `${m}:${s}`; }
     function startTimer(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); if(!state.timer) state.timer=dish.steps[state.cookStep].time; state.timerRunning=!state.timerRunning; clearInterval(state.timerInterval); if(state.timerRunning){ state.timerInterval=setInterval(()=>{ if(state.timer>0){state.timer--; renderCook();} else {state.timerRunning=false; clearInterval(state.timerInterval); toast('计时完成，看看锅里的状态'); renderCook();}},1000); } renderCook(); }
     function finishCook(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); $('#cook-shell').classList.remove('open'); clearInterval(state.timerInterval); state.timerRunning=false; openLogModal(dish.id); }
+    async function requestDouyinParse(parsed) {
+      const endpoint = window.FOODFLOW_API_URL || '/api/douyin/parse';
+      const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 1800);
+      try {
+        const response = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({source:parsed.url || parsed.raw, note:parsed.note || '', screenshot:parsed.screenshot || ''}), signal:controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } finally { clearTimeout(timeout); }
+    }
+    const baseOpenAddModalV07 = openAddModal;
+    openAddModal = function() {
+      baseOpenAddModalV07();
+      const saveButton = $('#save-draft'); if (!saveButton) return;
+      const localSave = saveButton.onclick;
+      saveButton.onclick = async () => {
+        const preview = $('#source-preview'); const screenshot = preview?.style.display === 'block' ? preview.src : '';
+        const parsed = parseDouyinSource($('#new-link').value.trim(), $('#new-note').value.trim(), screenshot);
+        if (!parsed.isDouyin) return localSave();
+        saveButton.disabled = true; saveButton.textContent = '连接解析服务…';
+        try {
+          const remote = await requestDouyinParse(parsed);
+          if (remote?.ok && remote.title) {
+            const ingredients = (remote.ingredients || []).map(i => `${i.name || i} ${i.amount || ''}`).join('，');
+            const steps = (remote.steps || []).map(s => s.title || s).join('；');
+            $('#new-note').value = `菜名：${remote.title}\n${ingredients ? `食材：${ingredients}\n` : ''}${steps ? `步骤：${steps}\n` : ''}${parsed.note || ''}`;
+          }
+          $('#source-status-text').textContent = remote?.provider ? '解析服务已返回草稿' : '接口已收到，使用人工校对模式';
+          $('#source-detail').textContent = remote?.message || '来源已交给解析接口，生成后请校对食材、步骤和成品状态。';
+          $('#source-confidence').textContent = remote?.confidence ? `草稿置信度 ${remote.confidence}% · 仍需人工确认` : '已进入人工确认'; $('#source-confidence').style.display = 'inline-flex';
+        } catch {
+          $('#source-status-text').textContent = '解析服务暂不可用，已切换本地兜底'; $('#source-detail').textContent = '当前仍会保存抖音来源，并用文字和截图生成草稿。';
+        } finally { saveButton.disabled = false; saveButton.textContent = '解析并生成草稿'; localSave(); }
+      };
+    };
     const baseOpenDetail = openDetail;
     openDetail = function(id) {
       baseOpenDetail(id);

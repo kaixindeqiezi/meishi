@@ -14,6 +14,22 @@ python -m http.server 4311 --directory designs
 
 也可以直接用浏览器打开 `index.html`，但使用 HTTP 服务时，PWA manifest 和多端预览更稳定。
 
+## 抖音解析接口（v0.7）
+
+前端会优先请求 `/api/douyin/parse`。本地可启动接口：
+
+```powershell
+node server/douyin-api.mjs
+```
+
+默认监听 `http://localhost:4320`。如果前端和接口不是同一个地址，可在浏览器控制台设置：
+
+```js
+window.FOODFLOW_API_URL = 'http://localhost:4320/api/douyin/parse'
+```
+
+接口默认只负责校验来源并返回“待人工确认”，不会绕过抖音登录或反爬限制。配置经过授权的解析供应商后，可通过 `DOUYIN_PROVIDER_URL` 和 `DOUYIN_PROVIDER_TOKEN` 转发请求。
+
 ## 第一版包含
 
 - 菜谱库、搜索与筛选
@@ -32,6 +48,13 @@ python -m http.server 4311 --directory designs
 - 示例菜品使用本地生成的成品摄影图；抖音原视频封面仍需通过后端解析或用户截图补充。
 
 ## 版本记录
+
+### v0.7 · 2026-08-01
+
+- 前端优先请求 `/api/douyin/parse` 解析服务
+- 解析服务不可用时自动回退到本地草稿流程
+- 新增可配置的本地 Douyin API 和健康检查接口
+- 预留授权解析供应商，不在浏览器端直接抓取视频
 
 ### v0.6 · 2026-08-01
 
