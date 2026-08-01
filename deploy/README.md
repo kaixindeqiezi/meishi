@@ -33,3 +33,7 @@ docker run --env-file .env -p 4320:4320 foodflow-api
 ```
 
 Skill 的配置只保存主机、用户、端口、仓库、分支和远程目录，不保存 SSH 私钥或 API Key。第一次使用时需要提供这些非敏感信息，之后可直接说“部署到 VPS”。
+
+## Nginx 反向代理
+
+本项目的接口通过 `meishi.musclebank.cn` 代理到 `127.0.0.1:4320`。配置模板位于 `deploy/nginx/meishi.musclebank.cn.conf`；VPS 上安装证书后，将它复制到 `/etc/nginx/conf.d/`，执行 `nginx -t && systemctl reload nginx`。
