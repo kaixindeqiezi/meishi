@@ -179,6 +179,12 @@
     .source-preview { width: 100%; max-height: 110px; object-fit: cover; border-radius: 12px; display: none; margin-top: 9px; }
     .source-detail-row { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fffaf6; color: var(--muted); font-size: 11px; line-height: 1.5; }
     .source-detail-row a { color: var(--tomato-dark); font-weight: 800; text-decoration: none; }
+    .ai-warning { margin-top: 12px; padding: 12px 13px; border-radius: 15px; background: #fff3e8; border: 1px solid #f0c39d; color: #8a5a39; font-size: 11px; line-height: 1.55; }
+    .ai-warning strong { display: block; color: #a45832; font-size: 12px; margin-bottom: 3px; }
+    .ai-warning.ready { background: var(--sage-light); border-color: #b8caa8; color: #58714d; }
+    .ai-warning.ready strong { color: #4c6743; }
+    .settings-button { width: 100%; margin-top: 12px; border-radius: 16px; padding: 13px 14px; background: #fff; border: 1px solid var(--line); color: var(--ink); display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; }
+    .settings-button span { color: var(--muted); font-size: 11px; font-weight: 600; }
     .preview-dish { background: #fff; border-radius: 18px; padding: 13px; margin-top: 13px; display: flex; gap: 12px; border: 1px solid var(--line); }
     .preview-dish .dish-thumb { width: 62px; height: 62px; flex-basis: 62px; }
     .helper { color: var(--muted); font-size: 11px; line-height: 1.55; margin-top: 8px; }
@@ -239,7 +245,7 @@
 <body lang="zh-CN">
   <main class="app-shell">
     <header class="topbar">
-      <div class="brand"><div class="brand-mark">做</div><div><div class="brand-name">做成 <span class="version-badge" id="brand-version">v0.7</span></div><div class="brand-sub">把想吃的，做出来</div></div></div>
+      <div class="brand"><div class="brand-mark">做</div><div><div class="brand-name">做成 <span class="version-badge" id="brand-version">v0.9</span></div><div class="brand-sub">把想吃的，做出来</div></div></div>
       <button class="icon-button" id="open-add" aria-label="添加菜谱">＋</button>
     </header>
 
@@ -277,7 +283,7 @@
         <div class="profile-card"><div class="profile-head"><div class="avatar">林</div><div><h2>林同学的厨房</h2><p>从 2026 年 7 月开始记录</p></div></div><div class="stat-row"><div class="stat"><b id="stat-done">3</b><span>已做成</span></div><div class="stat"><b id="stat-saved">12</b><span>收藏菜谱</span></div><div class="stat"><b>82%</b><span>本周匹配</span></div></div><div class="preference-row"><strong>饮食目标</strong><span>轻盈一点，但不委屈自己</span></div><div class="preference-row"><strong>常用厨具</strong><span>平底锅 · 空气炸锅 · 电饭煲</span></div><div class="preference-row"><strong>不吃的食材</strong><span>香菜 · 芹菜</span></div></div>
         <div class="section-head"><h2>我的偏好</h2></div>
         <div class="profile-card"><div class="preference-row"><strong>减脂标签</strong><span class="mini-tag green">规则解释已开启</span></div><div class="preference-row"><strong>默认份量</strong><span>1 人份</span></div><div class="preference-row"><strong>最长烹饪时间</strong><span>45 分钟</span></div></div>
-        <div class="section-head"><h2>版本记录</h2><span class="current-label" id="current-version">当前 v0.7</span></div>
+        <div class="section-head"><h2>版本记录</h2><span class="current-label" id="current-version">当前 v0.9</span></div>
         <div class="changelog" id="changelog-list"></div>
       </section>
     </div>
@@ -302,9 +308,11 @@
     ];
     const DISH_IMAGES = {pasta:'assets/hero-pasta.png', chicken:'assets/chicken-rice.png', tofu:'assets/tomato-tofu.png', soup:'assets/corn-chicken-soup.png'};
     const dishImage = dish => dish.image || DISH_IMAGES[dish.id] || '';
-    const APP_VERSION = 'v0.7';
+    const APP_VERSION = 'v0.9';
     const CHANGELOG = [
-      {version:'v0.7', date:'2026-08-01', title:'为抖音解析接上后端接口边界', current:true, items:['前端会优先请求 /api/douyin/parse 解析服务','解析服务不可用时自动回退到本地草稿流程','新增可配置的本地 Douyin API 和健康检查接口','预留授权解析供应商，不在浏览器端直接抓取视频']},
+      {version:'v0.9', date:'2026-08-01', title:'让 AI 接口成为可配置的会员能力', current:true, items:['个人设置中新增解析接口地址和 API Key 输入','采集时优先调用用户配置的接口','没有配置时明确显示本地模板，不冒充 AI 结果','增加环境变量示例和 VPS 部署说明']},
+      {version:'v0.8', date:'2026-08-01', title:'明确告诉你：AI 还没有接入', items:['采集弹窗显式提示当前是否配置菜谱识别 AI','未接入时生成“本地模板”，不再伪装成 AI 识别结果','接口只返回待确认状态，不会凭空补全视频内容','详情页和菜谱标签保留真实的识别状态']},
+      {version:'v0.7', date:'2026-08-01', title:'为抖音解析接上后端接口边界', items:['前端会优先请求 /api/douyin/parse 解析服务','解析服务不可用时自动回退到本地草稿流程','新增可配置的本地 Douyin API 和健康检查接口','预留授权解析供应商，不在浏览器端直接抓取视频']},
       {version:'v0.6', date:'2026-08-01', title:'把抖音收藏带回菜谱库', items:['支持粘贴抖音短链、完整链接和分享口令','识别来源、博主和原链接，并保存到菜谱草稿','支持文字补充与截图兜底，视频打不开也能记录','生成草稿后进入人工校对，确认后再正式入库']},
       {version:'v0.5', date:'2026-08-01', title:'从推荐到购物，一步接上', items:['推荐菜品可以直接加入购物清单','自动合并重复食材，保留菜品来源','购物项支持勾选已购买','支持一键清空购物清单并本地保存']},
       {version:'v0.4', date:'2026-08-01', title:'让每道菜先有一张成品图', items:['为示例菜品生成真实成品摄影图','首页推荐卡改用真实菜品照片','菜谱缩略图和详情页统一使用成品图','保留图片映射层，后续可替换为真实文生图 API']},
@@ -316,11 +324,12 @@
       dishes: JSON.parse(localStorage.getItem('foodflow-dishes') || 'null') || defaultDishes,
       pantry: JSON.parse(localStorage.getItem('foodflow-pantry') || 'null') || defaultPantry,
       shoppingList: JSON.parse(localStorage.getItem('foodflow-shopping') || 'null') || [],
+      aiSettings: JSON.parse(localStorage.getItem('foodflow-ai-settings') || 'null') || { providerUrl: '', apiKey: '', membershipPreview: true },
       activeScreen: 'home', filter: 'all', search: '', detailDishId: null, cookDishId: 'pasta', cookStep: 0, timer: 0, timerRunning: false, timerInterval: null
     };
     const $ = (s, root=document) => root.querySelector(s);
     const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-    function persist() { localStorage.setItem('foodflow-dishes', JSON.stringify(state.dishes)); localStorage.setItem('foodflow-pantry', JSON.stringify(state.pantry)); localStorage.setItem('foodflow-shopping', JSON.stringify(state.shoppingList)); }
+    function persist() { localStorage.setItem('foodflow-dishes', JSON.stringify(state.dishes)); localStorage.setItem('foodflow-pantry', JSON.stringify(state.pantry)); localStorage.setItem('foodflow-shopping', JSON.stringify(state.shoppingList)); localStorage.setItem('foodflow-ai-settings', JSON.stringify(state.aiSettings)); }
     function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>el.classList.remove('show'), 2300); }
     function showScreen(name) { state.activeScreen = name; $$('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`)); $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === name)); renderAll(); window.scrollTo({top:0, behavior:'smooth'}); }
     function dishCard(dish, compact=false) { const image = dishImage(dish); const imageStyle = image ? `style="background-image:linear-gradient(145deg,rgba(48,35,27,.08),rgba(48,35,27,.46)),url('${image}');background-size:cover;background-position:center"` : ''; return `<article class="dish-card" data-dish-id="${dish.id}"><div class="dish-thumb ${dish.thumb}" ${imageStyle}><span>${dish.done ? '已做过' : '待做'}</span></div><div class="dish-info"><div class="dish-title">${dish.title}</div><div class="dish-desc">${dish.desc}</div><div class="dish-tags">${dish.tags.map((t,i)=>`<span class="mini-tag ${dish.light && i===1 ? 'green':''}">${t}</span>`).join('')}</div></div><span style="color:#b4a79d;font-size:18px">›</span></article>`; }
@@ -392,11 +401,21 @@
     function formatTime(sec){ const m=Math.floor(sec/60).toString().padStart(2,'0'); const s=(sec%60).toString().padStart(2,'0'); return `${m}:${s}`; }
     function startTimer(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); if(!state.timer) state.timer=dish.steps[state.cookStep].time; state.timerRunning=!state.timerRunning; clearInterval(state.timerInterval); if(state.timerRunning){ state.timerInterval=setInterval(()=>{ if(state.timer>0){state.timer--; renderCook();} else {state.timerRunning=false; clearInterval(state.timerInterval); toast('计时完成，看看锅里的状态'); renderCook();}},1000); } renderCook(); }
     function finishCook(){ const dish=state.dishes.find(d=>d.id===state.cookDishId); $('#cook-shell').classList.remove('open'); clearInterval(state.timerInterval); state.timerRunning=false; openLogModal(dish.id); }
+    function openAISettingsModal() {
+      const currentUrl = state.aiSettings.providerUrl || '';
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>配置菜谱识别 AI</h2><button class="close-button" data-close>×</button></div><div class="ai-warning"><strong>会员功能预览</strong><span>这里可以填写你购买或自建的解析接口。当前版本只保存到本机浏览器，正式会员版应改为后端安全保存 API Key。</span></div><div class="field"><label>解析接口地址</label><input id="ai-provider-url" value="${currentUrl.replace(/"/g,'&quot;')}" placeholder="例如：https://api.example.com/api/douyin/parse" /></div><div class="field"><label>API Key</label><input id="ai-provider-key" type="password" placeholder="已保存的密钥不会显示，留空则保留原密钥" /></div><p class="helper">接口需要接受 POST JSON：source、note、screenshot，并返回 ok、title、ingredients、steps、confidence。没有配置时，系统会明确使用本地待确认模板。</p><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="save-ai-settings">保存接口设置</button></div>`);
+      $('#save-ai-settings').onclick = () => { const url = $('#ai-provider-url').value.trim(); state.aiSettings.providerUrl = url; state.aiSettings.apiKey = url ? ($('#ai-provider-key').value.trim() || state.aiSettings.apiKey) : ''; persist(); closeModal(); ensureAISettingsButton(); toast(state.aiSettings.providerUrl ? 'AI 接口设置已保存' : '已清除 AI 接口设置'); };
+    }
+    function ensureAISettingsButton() {
+      const profile = $('#screen-profile .profile-card'); if (!profile) return; const existing = $('#ai-settings-button'); if (existing) { existing.querySelector('span').textContent = state.aiSettings.providerUrl ? '已配置接口 · 点击管理 →' : '未配置 · 会员功能预览 →'; return; }
+      const button = document.createElement('button'); button.id = 'ai-settings-button'; button.className = 'settings-button'; button.innerHTML = `<b>菜谱识别 AI</b><span>${state.aiSettings.providerUrl ? '已配置接口 · 点击管理 →' : '未配置 · 会员功能预览 →'}</span>`; button.onclick = openAISettingsModal; profile.insertAdjacentElement('afterend', button);
+    }
     async function requestDouyinParse(parsed) {
-      const endpoint = window.FOODFLOW_API_URL || '/api/douyin/parse';
+      const endpoint = state.aiSettings.providerUrl.trim() || window.FOODFLOW_API_URL || '/api/douyin/parse';
       const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 1800);
       try {
-        const response = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({source:parsed.url || parsed.raw, note:parsed.note || '', screenshot:parsed.screenshot || ''}), signal:controller.signal });
+        const headers = {'content-type':'application/json'}; if (state.aiSettings.apiKey.trim()) headers.authorization = `Bearer ${state.aiSettings.apiKey.trim()}`;
+        const response = await fetch(endpoint, { method:'POST', headers, body:JSON.stringify({source:parsed.url || parsed.raw, note:parsed.note || '', screenshot:parsed.screenshot || ''}), signal:controller.signal });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
       } finally { clearTimeout(timeout); }
@@ -405,14 +424,17 @@
     openAddModal = function() {
       baseOpenAddModalV07();
       const saveButton = $('#save-draft'); if (!saveButton) return;
+      const aiConfigured = Boolean(state.aiSettings.providerUrl.trim() && state.aiSettings.apiKey.trim()); const aiWarning = document.createElement('div'); aiWarning.className = `ai-warning ${aiConfigured ? 'ready' : ''}`; aiWarning.innerHTML = aiConfigured ? '<strong>✓ 已保存自定义解析接口</strong><span>系统会尝试调用你的会员接口，但返回内容仍需人工校对；API Key 仅保存在当前浏览器。</span>' : '<strong>⚠ 当前未配置菜谱识别 AI</strong><span>现在不会自动读取抖音视频内容。系统只会保存来源，并根据你填写的文字或截图生成“本地待确认模板”。接入解析 API 后才会提取字幕、画面和步骤。</span>'; saveButton.closest('.modal-actions')?.before(aiWarning);
+      const helper = $('#modal-content .helper'); if (helper) helper.textContent = '请先粘贴抖音链接，再补充你记得的内容。没有识别 API 时，不会把猜测当成真实菜谱。';
       const localSave = saveButton.onclick;
       saveButton.onclick = async () => {
         const preview = $('#source-preview'); const screenshot = preview?.style.display === 'block' ? preview.src : '';
         const parsed = parseDouyinSource($('#new-link').value.trim(), $('#new-note').value.trim(), screenshot);
-        if (!parsed.isDouyin) return localSave();
+        if (!parsed.isDouyin) { localSave(); const created = state.dishes[0]; if (created) { created.tags = ['待确认', '本地模板']; created.aiStatus = 'not-configured'; created.importConfidence = 0; created.importMethod = 'manual-fallback'; persist(); renderAll(); } return; }
+        let remote = null;
         saveButton.disabled = true; saveButton.textContent = '连接解析服务…';
         try {
-          const remote = await requestDouyinParse(parsed);
+          remote = await requestDouyinParse(parsed);
           if (remote?.ok && remote.title) {
             const ingredients = (remote.ingredients || []).map(i => `${i.name || i} ${i.amount || ''}`).join('，');
             const steps = (remote.steps || []).map(s => s.title || s).join('；');
@@ -423,7 +445,12 @@
           $('#source-confidence').textContent = remote?.confidence ? `草稿置信度 ${remote.confidence}% · 仍需人工确认` : '已进入人工确认'; $('#source-confidence').style.display = 'inline-flex';
         } catch {
           $('#source-status-text').textContent = '解析服务暂不可用，已切换本地兜底'; $('#source-detail').textContent = '当前仍会保存抖音来源，并用文字和截图生成草稿。';
-        } finally { saveButton.disabled = false; saveButton.textContent = '解析并生成草稿'; localSave(); }
+        } finally {
+          saveButton.disabled = false; saveButton.textContent = remote?.provider ? '解析并生成草稿' : '生成待确认模板';
+          localSave();
+          const created = state.dishes[0];
+          if (created && !remote?.provider) { created.tags = ['待确认', '本地模板']; created.aiStatus = 'not-configured'; created.importConfidence = 0; created.importMethod = 'local-fallback'; persist(); renderAll(); }
+        }
       };
     };
     const baseOpenDetail = openDetail;
@@ -431,6 +458,7 @@
       baseOpenDetail(id);
       const dish = state.dishes.find(d => d.id === id); const art = $('#modal-content .detail-art');
       if (!dish || !art || !dish.sourceUrl) return;
+      if (dish.aiStatus === 'not-configured') { const badge = $('#modal-content .modal-head .pill'); if (badge) badge.textContent = '本地模板 · 待确认'; }
       const sourceRow = document.createElement('div'); sourceRow.className = 'source-detail-row';
       if (/^https?:\/\//i.test(dish.sourceUrl)) {
         sourceRow.append(`来源：${dish.sourceCreator || '抖音博主'} · `); const sourceLink = document.createElement('a'); sourceLink.href = dish.sourceUrl; sourceLink.target = '_blank'; sourceLink.rel = 'noreferrer'; sourceLink.textContent = '打开原视频 ↗'; sourceRow.append(sourceLink);
@@ -444,7 +472,7 @@
     $('#recipe-search').oninput=(e)=>{state.search=e.target.value;renderRecipes();bindDishClicks();}; $$('.filter').forEach(el=>el.onclick=()=>{state.filter=el.dataset.filter;renderRecipes();bindDishClicks();});
     $('#modal-backdrop').onclick=(e)=>{if(e.target.id==='modal-backdrop')closeModal();}; document.addEventListener('click', e=>{if(e.target.matches('[data-close]'))closeModal();});
     $('#cook-close').onclick=()=>{$('#cook-shell').classList.remove('open');clearInterval(state.timerInterval);state.timerRunning=false;}; $('#cook-prev').onclick=()=>{if(state.cookStep>0){state.cookStep--;state.timer=0;renderCook();}}; $('#cook-next').onclick=()=>{const dish=state.dishes.find(d=>d.id===state.cookDishId);if(state.cookStep<dish.steps.length-1){state.cookStep++;state.timer=0;renderCook();}else finishCook();}; $('#timer-toggle').onclick=startTimer;
-    renderAll();
+    renderAll(); ensureAISettingsButton();
   </script>
 </body>
 </html>
