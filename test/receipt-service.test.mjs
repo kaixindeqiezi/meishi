@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createDatabase, withTransaction } from '../server/db.mjs';
-import { buildPriceTrends, dateDiffDays, normalizeDraft } from '../server/receipt-service.mjs';
+import { buildPriceTrends, dateDiffDays, normalizeDraft, parseReceiptText } from '../server/receipt-service.mjs';
 
 function testDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-'));
@@ -25,6 +25,15 @@ test('stored days never becomes negative', () => {
   assert.equal(dateDiffDays('2026-08-01', '2026-08-04'), 3);
   assert.equal(dateDiffDays('2026-08-05', '2026-08-04'), 0);
   assert.equal(dateDiffDays(null), null);
+});
+
+test('parses common OCR receipt lines into editable draft fields', () => {
+  const parsed = parseReceiptText('某某超市\n2026-08-01 18:20\n西红柿 1 kg 12.50\n鸡蛋 2 个 18.00\n合计 30.50');
+  assert.equal(parsed.purchasedAt, '2026-08-01');
+  assert.equal(parsed.total, '30.50');
+  assert.equal(parsed.items.length, 2);
+  assert.equal(parsed.items[0].name, '西红柿');
+  assert.equal(parsed.items[0].unit, 'kg');
 });
 
 test('price advice waits for three comparable observations', () => {

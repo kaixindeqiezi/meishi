@@ -1,14 +1,22 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import { URL } from 'node:url';
 import Busboy from 'busboy';
 import { createDatabase, deviceIdFromRequest, withTransaction } from './db.mjs';
-import { buildPriceTrends, dateDiffDays, id, listLots, normalizeDraft, today } from './receipt-service.mjs';
+import { buildPriceTrends, id, listLots, normalizeDraft, parseReceiptText, today } from './receipt-service.mjs';
 
 const port = Number(process.env.FOODFLOW_API_PORT || 4320);
 const providerUrl = process.env.DOUYIN_PROVIDER_URL || '';
 const providerToken = process.env.DOUYIN_PROVIDER_TOKEN || '';
 const receiptOcrUrl = process.env.RECEIPT_OCR_PROVIDER_URL || '';
 const receiptOcrToken = process.env.RECEIPT_OCR_PROVIDER_TOKEN || '';
+const execFileAsync = promisify(execFile);
+const localOcrAvailable = (() => { try { execFileSync('tesseract', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const db = createDatabase();
 
 function sendJson(res, status, payload) {
@@ -36,6 +44,16 @@ async function callProvider(payload, url = providerUrl, token = providerToken) {
     if (!response.ok) throw new Error(`provider returned ${response.status}`);
     return await response.json();
   } finally { clearTimeout(timeout); }
+}
+
+async function runLocalReceiptOcr(buffer, mimeType = 'image/jpeg') {
+  const extension = mimeType.includes('png') ? '.png' : mimeType.includes('webp') ? '.webp' : '.jpg';
+  const filename = path.join(os.tmpdir(), `foodflow-receipt-${crypto.randomUUID()}${extension}`);
+  await fs.writeFile(filename, buffer);
+  try {
+    const { stdout } = await execFileAsync('tesseract', [filename, 'stdout', '-l', 'chi_sim+eng'], { timeout: 20000, maxBuffer: 2 * 1024 * 1024 });
+    return parseReceiptText(stdout);
+  } finally { await fs.unlink(filename).catch(() => {}); }
 }
 
 function readBody(req, limit = 16 * 1024 * 1024) {
@@ -94,18 +112,24 @@ async function scanReceipt(req, res) {
   const deviceId = deviceIdFromRequest(req);
   const { fields, file } = await readMultipart(req);
   if (!file?.buffer?.length) return sendJson(res, 400, { ok: false, error: 'image_required', message: '请上传小票图片' });
-  let providerResult = null;
-  if (receiptOcrUrl) providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken);
-  const draft = normalizeDraft(providerResult || { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 }, db);
+  let providerResult = null; let providerName = '';
+  try {
+    if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
+    else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
+  } catch { providerResult = null; providerName = ''; }
+  const draftInput = providerResult?.receipt || providerResult || { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 };
+  if (!draftInput.purchasedAt && !draftInput.purchaseDate) draftInput.purchaseDate = fields.purchaseDate || today();
+  const draft = normalizeDraft(draftInput, db);
   draft.imageAccepted = true;
   draft.deviceId = deviceId;
-  return sendJson(res, 200, { ok: true, status: providerResult ? 'needs_review' : 'needs_manual_review', provider: Boolean(providerResult), message: providerResult ? '已识别小票，请校对后确认' : 'OCR 服务未配置，请手动补充小票明细', receipt: draft });
+  const recognized = Boolean(providerResult?.rawText || providerResult?.items?.length || providerResult?.receipt?.items?.length);
+  return sendJson(res, 200, { ok: true, status: recognized ? 'needs_review' : 'needs_manual_review', provider: recognized, providerName, message: recognized ? (providerName === 'local-tesseract' ? '已使用本地 OCR 识别，请校对小票明细' : '已识别小票，请校对后确认') : 'OCR 未提取到明细，请手动补充小票内容', receipt: draft });
 }
 
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl), dbConfigured: true });
+  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl) || localOcrAvailable, localOcrAvailable, dbConfigured: true });
   if (req.method === 'POST' && url.pathname === '/api/receipts/scan') return scanReceipt(req, res);
   if (req.method === 'POST' && url.pathname === '/api/receipts/confirm') {
     const deviceId = deviceIdFromRequest(req); const result = confirmReceipt(JSON.parse(await readBody(req)), deviceId); return sendJson(res, 201, { ok: true, receipt: result });
