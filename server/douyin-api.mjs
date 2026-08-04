@@ -67,7 +67,9 @@ async function callTencentOcr(buffer, mimeType = 'image/jpeg') {
   const secretDate = hmac(`TC3${tencentSecretKey}`, date); const secretService = hmac(secretDate, service); const secretSigning = hmac(secretService, 'tc3_request');
   const signature = hmac(secretSigning, stringToSign, 'hex');
   const authorization = `TC3-HMAC-SHA256 Credential=${tencentSecretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  const response = await fetch(`https://${host}/`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', Host: host, Authorization: authorization, 'X-TC-Action': action, 'X-TC-Version': version, 'X-TC-Region': tencentOcrRegion, 'X-TC-Timestamp': String(timestamp) }, body: payload, signal: AbortSignal.timeout(30000) });
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', Host: host, Authorization: authorization, 'X-TC-Action': action, 'X-TC-Version': version, 'X-TC-Timestamp': String(timestamp) };
+  if (tencentOcrRegion && tencentOcrRegion !== 'ap-guangzhou') headers['X-TC-Region'] = tencentOcrRegion;
+  const response = await fetch(`https://${host}/`, { method: 'POST', headers, body: payload, signal: AbortSignal.timeout(30000) });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || result.Response?.Error) throw new Error(result.Response?.Error?.Message || `Tencent OCR HTTP ${response.status}`);
   const detections = result.Response?.TextDetections || []; const rawText = detections.map(item => item.DetectedText).filter(Boolean).join('\n');
@@ -148,13 +150,13 @@ async function scanReceipt(req, res) {
   const deviceId = deviceIdFromRequest(req);
   const { fields, file } = await readMultipart(req);
   if (!file?.buffer?.length) return sendJson(res, 400, { ok: false, error: 'image_required', message: '请上传小票图片' });
-  let providerResult = null; let providerName = '';
+  let providerResult = null; let providerName = ''; let ocrError = '';
   try {
     if (tencentOcrConfigured) { providerResult = await callTencentOcr(file.buffer, file.mimeType); providerName = 'tencent-cloud'; }
     else if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
     else if (localOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
-  } catch (error) { console.error(`receipt OCR failed: ${error?.name || 'Error'} ${error?.message || ''}`); providerResult = null; providerName = ''; }
+  } catch (error) { ocrError = error?.message || 'ocr_failed'; console.error(`receipt OCR failed: ${error?.name || 'Error'} ${ocrError}`); providerResult = null; providerName = ''; }
   const providerDraft = providerResult?.receipt || providerResult || {};
   const parsedProviderText = !providerDraft.items?.length && (providerDraft.rawText || providerDraft.text) ? parseReceiptText(providerDraft.rawText || providerDraft.text) : {};
   const draftInput = { ...parsedProviderText, ...providerDraft, rawText: providerDraft.rawText || providerDraft.text || parsedProviderText.rawText || '' };
@@ -164,7 +166,7 @@ async function scanReceipt(req, res) {
   draft.imageAccepted = true;
   draft.deviceId = deviceId;
   const recognized = Boolean(providerResult?.rawText || providerResult?.text || providerResult?.items?.length || providerResult?.receipt?.items?.length);
-  return sendJson(res, 200, { ok: true, status: recognized ? 'needs_review' : 'needs_manual_review', provider: recognized, providerName, message: recognized ? (providerName === 'local-tesseract' ? '已使用本地 OCR 识别，请校对小票明细' : '已识别小票，请校对后确认') : 'OCR 未提取到明细，请手动补充小票内容', receipt: draft });
+  return sendJson(res, 200, { ok: true, status: recognized ? 'needs_review' : 'needs_manual_review', provider: recognized, providerName, ocrConfigured: tencentOcrConfigured || Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, ocrError: recognized ? '' : ocrError, message: recognized ? (providerName === 'local-tesseract' ? '已使用本地 OCR 识别，请校对小票明细' : '已识别小票，请校对后确认') : ocrError ? 'OCR 服务已配置，但本次识别失败，请重试或手动补充' : 'OCR 未提取到明细，请手动补充小票内容', receipt: draft });
 }
 
 async function scanLabel(req, res) {
