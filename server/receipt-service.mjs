@@ -33,10 +33,19 @@ export function parseReceiptText(rawText) {
   const dateMatch = lines.join(' ').match(/(20\s*\d{2})\s*[\/.年-]\s*(\d{1,2})\s*[\/.月-]\s*(\d{1,2})/);
   if (dateMatch) purchasedAt = `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, '0')}-${String(dateMatch[3]).padStart(2, '0')}`;
   let total = null;
-  for (const line of lines) {
-    const totalMatch = line.match(/(?:合\s*计|总\s*计|应\s*付|实\s*付|支付|金额|amount)[^\d]{0,14}(\d{1,6}(?:[.,]\d{1,2})?)/i);
-    if (totalMatch) total = totalMatch[1].replace(',', '.');
+  const totalCandidates = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const direct = line.match(/(?:收款|合\s*计|总\s*计|应\s*付|实\s*付|支付|金额|amount)[^\d]{0,14}(\d{1,6}(?:[.,]\d{1,2})?)/i);
+    if (direct) totalCandidates.push(direct[1].replace(',', '.'));
+    if (/(?:收款|合\s*计|总\s*计|应\s*付|实\s*付|支付)\s*[:：]?\s*$/i.test(line)) {
+      for (const next of lines.slice(index + 1, index + 4)) {
+        const value = next.match(/(\d{1,6}[.,]\d{1,2})\s*元?/);
+        if (value) { totalCandidates.push(value[1].replace(',', '.')); break; }
+      }
+    }
   }
+  if (totalCandidates.length) total = totalCandidates.at(-1);
   const storeName = lines.slice(0, 6).find(line => /超市|便利|商场|市场|生鲜|百货|购物|店|market|mart/i.test(line)) || '';
   const items = [];
   for (const line of lines) {
@@ -60,25 +69,30 @@ export function parseReceiptText(rawText) {
   }
   const pairedItems = [];
   const seenPairs = new Set();
-  const nameLine = line => !RECEIPT_NOISE.test(line) && !/[\d]/.test(line) && /[\u4e00-\u9fff]/.test(line) && line.length <= 32;
+  const nameLine = line => { const chinese = (line.match(/[\u4e00-\u9fff]/g) || []).length; const digits = (line.match(/[\d]/g) || []).length; return !RECEIPT_NOISE.test(line) && chinese >= 2 && digits <= 4 && line.length <= 32; };
   for (let index = 0; index < lines.length; index += 1) {
     const numericLine = lines[index];
+    if (RECEIPT_NOISE.test(numericLine)) continue;
     const values = [...numericLine.matchAll(/(\d{1,6}(?:[.,]\d{1,2}))/g)].map(match => match[1].replace(',', '.'));
     if (!values.length) continue;
     const multiply = numericLine.match(/(\d+(?:[.,]\d+)?)\s*[*x×]\s*(\d+(?:[.,]\d+)?)[^\d]+(\d+(?:[.,]\d+)?)/i);
+    if (!multiply) continue;
     const quantityValue = multiply ? Number(multiply[1].replace(',', '.')) : values.length > 1 ? Number(values.at(-2)) : null;
     const unitPrice = multiply ? multiply[2].replace(',', '.') : null;
     const lineTotal = multiply ? multiply[3].replace(',', '.') : values.at(-1);
-    for (const offset of [-2]) {
+    for (const offset of [-2, -1]) {
       const neighbor = lines[index + offset];
       const bridge = lines[index - 1] || '';
       if (offset === -2 && !/^[\d\s-]{6,}$/.test(bridge)) continue;
       if (!neighbor || !nameLine(neighbor)) continue;
-      if (quantityValue !== null && quantityValue > 1000) continue;
+      let normalizedQuantity = quantityValue;
+      let unit = null;
+      if (multiply && normalizedQuantity > 20 && Number(unitPrice) > 0 && Number(lineTotal) > 0 && normalizedQuantity * Number(unitPrice) > Number(lineTotal) * 50) { normalizedQuantity /= 1000; unit = 'kg'; }
+      if (normalizedQuantity !== null && normalizedQuantity > 1000) continue;
       const key = `${neighbor}|${lineTotal}`;
       if (seenPairs.has(key)) continue;
       seenPairs.add(key);
-      pairedItems.push({ name: neighbor, quantity: quantityValue !== null && Number.isFinite(quantityValue) ? String(quantityValue) : null, unit: null, unitPrice, lineTotal, confidence: multiply ? 72 : 55 });
+      pairedItems.push({ name: neighbor, quantity: normalizedQuantity !== null && Number.isFinite(normalizedQuantity) ? String(normalizedQuantity) : null, unit, unitPrice, lineTotal, confidence: multiply ? 72 : 55 });
     }
   }
   const finalItems = pairedItems.length ? pairedItems : items;
