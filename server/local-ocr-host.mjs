@@ -47,7 +47,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') return send(res, 200, { ok: true, tesseract: true });
   if (req.method !== 'POST' || req.url !== '/ocr') return send(res, 404, { ok: false, error: 'not_found' });
   try { return send(res, 200, await ocr(JSON.parse(await readBody(req)))); }
-  catch (error) { return send(res, error.statusCode || 500, { ok: false, error: error.message || 'ocr_failed' }); }
+  catch (error) { console.error(`host OCR failed: ${error?.stack || error}`); return send(res, error.statusCode || 500, { ok: false, error: error.message || 'ocr_failed' }); }
 });
 
 server.listen(port, host, () => console.log(`FoodFlow host OCR listening on http://${host}:${port}`));
