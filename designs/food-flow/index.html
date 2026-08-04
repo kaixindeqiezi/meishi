@@ -150,7 +150,7 @@
     .changelog-item { display: flex; gap: 8px; color: #6f6258; font-size: 11px; line-height: 1.5; }
     .changelog-item::before { content: "＋"; color: var(--sage); font-weight: 900; }
     .current-label { color: #58714d; background: var(--sage-light); padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
-    .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 460px); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(65,53,44,.08); display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+    .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 460px); padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(65,53,44,.08); display: grid; grid-template-columns: repeat(5,1fr); gap: 3px; }
     .nav-item { background: transparent; color: var(--muted); display: grid; place-items: center; gap: 4px; padding: 5px 0; font-size: 10px; font-weight: 700; border-radius: 13px; }
     .nav-item .nav-icon { font-size: 18px; line-height: 1; }
     .nav-item.active { color: var(--tomato); background: #fff; box-shadow: 0 4px 12px rgba(76,49,31,.07); }
@@ -232,6 +232,25 @@
     .photo-drop { border: 1px dashed #d4b2a3; border-radius: 16px; padding: 20px 14px; text-align: center; color: var(--muted); font-size: 12px; background: #fffaf6; cursor: pointer; }
     .photo-drop strong { display: block; color: var(--tomato); font-size: 20px; margin-bottom: 7px; }
     .photo-preview { width: 100%; height: 150px; border-radius: 15px; object-fit: cover; display: none; margin-top: 10px; }
+    .receipt-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .receipt-stat { background: var(--paper-2); border-radius: 15px; padding: 12px 9px; }
+    .receipt-stat b { display: block; font-family: var(--serif); font-size: 22px; }
+    .receipt-stat span { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+    .receipt-list, .lot-list, .trend-list { display: grid; gap: 9px; }
+    .receipt-card, .lot-card, .trend-card { background: #fff; border: 1px solid rgba(65,53,44,.07); border-radius: 17px; padding: 13px; }
+    .receipt-card-head, .lot-card-head, .trend-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+    .receipt-card strong, .lot-card strong, .trend-card strong { font-size: 13px; }
+    .receipt-card small, .lot-card small, .trend-card small { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; line-height: 1.45; }
+    .trend-advice { padding: 5px 8px; border-radius: 999px; background: var(--sage-light); color: #58714d; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .trend-advice.high { background: #fff1e6; color: #a96644; }
+    .trend-advice.empty { background: var(--paper-2); color: var(--muted); }
+    .receipt-items-preview { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px; }
+    .receipt-item-chip { padding: 4px 7px; border-radius: 999px; background: var(--paper-2); color: #74685e; font-size: 10px; }
+    .lot-age { color: #a96644; font-size: 11px; font-weight: 800; }
+    .review-row { display: grid; grid-template-columns: 1.4fr .65fr .7fr .75fr auto; gap: 5px; align-items: center; margin-top: 8px; }
+    .review-row input { min-width: 0; border: 1px solid var(--line); border-radius: 9px; padding: 8px 7px; background: #fff; font-size: 11px; }
+    .review-remove { width: 26px; height: 26px; border-radius: 8px; background: #fff1e6; color: #a96644; font-weight: 900; }
+    .receipt-note { padding: 11px 12px; border-radius: 13px; background: #fff8e9; color: #8a6b3e; font-size: 11px; line-height: 1.55; }
     @media (min-width: 700px) {
       body { background: #e9e1d6; padding: 24px; }
       .app-shell { border-radius: 30px; min-height: calc(100vh - 48px); box-shadow: 0 18px 80px rgba(69,48,33,.16); }
@@ -268,7 +287,7 @@
       </section>
 
       <section class="screen" id="screen-pantry" data-screen-label="食材">
-        <div class="page-title"><div><div class="eyebrow">WHAT'S IN THE KITCHEN</div><h1>家里有什么</h1><p>少买一点，也能多做几道。</p></div><button class="primary-button" data-action="pantry-add">＋ 食材</button></div>
+        <div class="page-title"><div><div class="eyebrow">WHAT'S IN THE KITCHEN</div><h1>家里有什么</h1><p>少买一点，也能多做几道。</p></div><div style="display:flex;gap:6px"><button class="secondary-button" id="pantry-receipt-scan">扫小票</button><button class="primary-button" data-action="pantry-add">＋ 食材</button></div></div>
         <div class="pantry-hero"><div><h2>本周库存</h2><p id="pantry-summary">8 种食材 · 2 种快过期</p></div><div class="pantry-hero-art"></div></div>
         <div class="section-head"><h2>我的食材</h2><button class="text-button" data-action="pantry-add">编辑 →</button></div>
         <div class="ingredient-cloud" id="pantry-cloud"></div>
@@ -276,6 +295,17 @@
         <div class="dish-list" id="recommend-list"></div>
         <div class="section-head"><h2>购物清单</h2><button class="text-button" data-action="clear-shopping">清空 →</button></div>
         <div class="shopping-list" id="shopping-list"></div>
+      </section>
+
+      <section class="screen" id="screen-shopping" data-screen-label="买菜">
+        <div class="page-title"><div><div class="eyebrow">RECEIPTS & PRICE NOTES</div><h1>买菜</h1><p>从小票里记住买过什么，也记住什么时候值得买。</p></div><button class="primary-button" id="receipt-scan-button">＋ 扫小票</button></div>
+        <div class="receipt-summary-grid"><div class="receipt-stat"><b id="receipt-count">—</b><span>张小票</span></div><div class="receipt-stat"><b id="lot-count">—</b><span>在库批次</span></div><div class="receipt-stat"><b id="low-price-count">—</b><span>适合入手</span></div></div>
+        <div class="section-head"><h2>最近购买</h2><button class="text-button" id="receipt-refresh">刷新 →</button></div>
+        <div class="receipt-list" id="receipt-list"><div class="empty">正在读取购买记录…</div></div>
+        <div class="section-head"><h2>食材存放</h2><span class="mini-tag green">按最早批次</span></div>
+        <div class="lot-list" id="lot-list"><div class="empty">正在读取库存批次…</div></div>
+        <div class="section-head"><h2>价格趋势</h2><span class="mini-tag">近 90 天</span></div>
+        <div class="trend-list" id="trend-list"><div class="empty">买过 3 次后会显示个人价格建议。</div></div>
       </section>
 
       <section class="screen" id="screen-profile" data-screen-label="我的">
@@ -288,7 +318,7 @@
       </section>
     </div>
 
-    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" data-nav="home"><span class="nav-icon">⌂</span><span>今天</span></button><button class="nav-item" data-nav="recipes"><span class="nav-icon">▤</span><span>菜谱</span></button><button class="nav-item" data-nav="pantry"><span class="nav-icon">◌</span><span>食材</span></button><button class="nav-item" data-nav="profile"><span class="nav-icon">◎</span><span>我的</span></button></nav>
+    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" data-nav="home"><span class="nav-icon">⌂</span><span>今天</span></button><button class="nav-item" data-nav="recipes"><span class="nav-icon">▤</span><span>菜谱</span></button><button class="nav-item" data-nav="pantry"><span class="nav-icon">◌</span><span>食材</span></button><button class="nav-item" data-nav="shopping"><span class="nav-icon">▣</span><span>买菜</span></button><button class="nav-item" data-nav="profile"><span class="nav-icon">◎</span><span>我的</span></button></nav>
   </main>
 
   <div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-content"></div></div>
@@ -308,9 +338,10 @@
     ];
     const DISH_IMAGES = {pasta:'assets/hero-pasta.png', chicken:'assets/chicken-rice.png', tofu:'assets/tomato-tofu.png', soup:'assets/corn-chicken-soup.png'};
     const dishImage = dish => dish.image || DISH_IMAGES[dish.id] || '';
-    const APP_VERSION = 'v0.9';
+    const APP_VERSION = 'v1.0';
     const CHANGELOG = [
-      {version:'v0.9', date:'2026-08-01', title:'让 AI 接口成为可配置的会员能力', current:true, items:['个人设置中新增解析接口地址和 API Key 输入','采集时优先调用用户配置的接口','没有配置时明确显示本地模板，不冒充 AI 结果','增加环境变量示例和 VPS 部署说明']},
+      {version:'v1.0', date:'2026-08-04', title:'从小票记住买过什么', current:true, items:['支持拍照或上传购物小票并进入人工校对','按购买批次显示食材已存放天数和消耗状态','基于个人 90 天购买记录给出价格趋势提示']},
+      {version:'v0.9', date:'2026-08-01', title:'让 AI 接口成为可配置的会员能力', items:['个人设置中新增解析接口地址和 API Key 输入','采集时优先调用用户配置的接口','没有配置时明确显示本地模板，不冒充 AI 结果','增加环境变量示例和 VPS 部署说明']},
       {version:'v0.8', date:'2026-08-01', title:'明确告诉你：AI 还没有接入', items:['采集弹窗显式提示当前是否配置菜谱识别 AI','未接入时生成“本地模板”，不再伪装成 AI 识别结果','接口只返回待确认状态，不会凭空补全视频内容','详情页和菜谱标签保留真实的识别状态']},
       {version:'v0.7', date:'2026-08-01', title:'为抖音解析接上后端接口边界', items:['前端会优先请求 /api/douyin/parse 解析服务','解析服务不可用时自动回退到本地草稿流程','新增可配置的本地 Douyin API 和健康检查接口','预留授权解析供应商，不在浏览器端直接抓取视频']},
       {version:'v0.6', date:'2026-08-01', title:'把抖音收藏带回菜谱库', items:['支持粘贴抖音短链、完整链接和分享口令','识别来源、博主和原链接，并保存到菜谱草稿','支持文字补充与截图兜底，视频打不开也能记录','生成草稿后进入人工校对，确认后再正式入库']},
@@ -467,6 +498,53 @@
       }
       art.insertAdjacentElement('afterend', sourceRow);
     };
+    const receiptState = {receipts:[], lots:[], trends:[], loaded:false};
+    const receiptApiBase = (window.FOODFLOW_RECEIPTS_API_BASE || (window.FOODFLOW_API_URL || '').replace(/\/api\/douyin\/parse\/?$/, '') || window.location.origin).replace(/\/$/, '');
+    const receiptDeviceId = (() => { const key='foodflow-device-id'; let value=localStorage.getItem(key); if (!value) { value=(window.crypto?.randomUUID?.() || `device-${Date.now()}-${Math.random().toString(16).slice(2)}`); localStorage.setItem(key,value); } return value; })();
+    const receiptHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const receiptMoney = cents => cents == null ? '—' : `¥${(Number(cents) / 100).toFixed(2)}`;
+    async function receiptApi(path, options={}) {
+      const headers = {'x-device-id':receiptDeviceId, ...(options.body instanceof FormData ? {} : {'content-type':'application/json'}), ...(options.headers || {})};
+      const response = await fetch(`${receiptApiBase}${path}`, {...options, headers});
+      const payload = await response.json().catch(()=>({}));
+      if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
+      return payload;
+    }
+    function renderReceiptData() {
+      const receipts = receiptState.receipts, lots = receiptState.lots, trends = receiptState.trends;
+      $('#receipt-count').textContent = receipts.length;
+      $('#lot-count').textContent = lots.filter(l=>l.status==='in_stock').length;
+      $('#low-price-count').textContent = trends.filter(t=>t.advice==='适合入手').length;
+      $('#receipt-list').innerHTML = receipts.length ? receipts.map(receipt => `<article class="receipt-card"><div class="receipt-card-head"><div><strong>${receiptHtml(receipt.storeName || '未填写商店')}</strong><small>${receipt.purchasedAt} · ${receipt.items.length} 项食材</small></div><strong>${receiptMoney(receipt.totalCents)}</strong></div><div class="receipt-items-preview">${receipt.items.slice(0,6).map(item=>`<span class="receipt-item-chip">${receiptHtml(item.canonicalName || item.rawName)}${item.lineTotalCents != null ? ` · ${receiptMoney(item.lineTotalCents)}` : ''}</span>`).join('')}</div></article>`).join('') : '<div class="empty">还没有小票记录。<br/>点击右上角拍一张小票开始。</div>';
+      $('#lot-list').innerHTML = lots.length ? lots.map(lot => `<article class="lot-card"><div class="lot-card-head"><div><strong>${receiptHtml(lot.displayName || lot.ingredient)}</strong><small>${lot.quantity || '适量'} ${receiptHtml(lot.unit || '')} · 购于 ${lot.purchasedAt || '日期未知'}</small></div><div>${lot.status==='in_stock' ? `<span class="lot-age">${lot.storedDays == null ? '存放天数未知' : `已存 ${lot.storedDays} 天`}</span><button class="text-button" data-consume-lot="${lot.id}">用掉</button>` : '<span class="mini-tag">已消耗</span>'}</div></div></article>`).join('') : '<div class="empty">确认小票后，食材批次会显示在这里。</div>';
+      $('#trend-list').innerHTML = trends.length ? trends.map(t => `<article class="trend-card"><div class="trend-head"><div><strong>${receiptHtml(t.ingredient)}</strong><small>最近 ${t.sampleCount} 次 · 最新 ${receiptMoney(t.latestPriceCents)}${t.unit ? ` / ${receiptHtml(t.unit)}` : ''} · ${t.latestDate}</small></div><span class="trend-advice ${t.advice==='近期偏贵' ? 'high' : t.advice==='样本不足' ? 'empty' : ''}">${t.advice}</span></div><small>历史均价 ${receiptMoney(t.averagePriceCents)} · ${t.deltaPct >= 0 ? '上涨' : '下降'} ${Math.abs(t.deltaPct)}%</small></article>`).join('') : '<div class="empty">买过 3 次后会显示个人价格建议。</div>';
+      $$('[data-consume-lot]').forEach(button => button.onclick = async () => { try { await receiptApi(`/api/pantry/lots/${button.dataset.consumeLot}/consume`, {method:'POST'}); await loadReceiptData(); toast('已标记这批食材用掉'); } catch (error) { toast(error.message); } });
+    }
+    async function loadReceiptData() {
+      try { const [receipts, lots, trends] = await Promise.all([receiptApi('/api/receipts?limit=20'), receiptApi('/api/pantry/lots'), receiptApi('/api/price-trends?days=90')]); receiptState.receipts=receipts.receipts || []; receiptState.lots=lots.lots || []; receiptState.trends=trends.trends || []; receiptState.loaded=true; renderReceiptData(); }
+      catch (error) { $('#receipt-list').innerHTML = `<div class="receipt-note">买菜数据服务暂不可用：${receiptHtml(error.message)}<br/>菜谱和本地库存仍可继续使用。</div>`; $('#lot-list').innerHTML=''; $('#trend-list').innerHTML=''; }
+    }
+    function receiptReviewHtml(draft) {
+      const items = draft.items || [];
+      return `<div class="modal-handle"></div><div class="modal-head"><h2>校对购物小票</h2><button class="close-button" data-close>×</button></div><div class="receipt-note">${draft.provider ? 'OCR 已识别，请检查低置信度或金额异常的行。' : 'OCR 服务未配置，可以直接手动填写小票内容。'} 确认后会把食材加入库存。</div><div class="field"><label>商店</label><input id="receipt-store" value="${receiptHtml(draft.storeName)}" placeholder="例如：盒马鲜生" /></div><div class="field"><label>购买日期</label><input id="receipt-date" type="date" value="${receiptHtml(draft.purchasedAt || new Date().toISOString().slice(0,10))}" /></div><div class="field"><label>食材明细（名称 · 数量 · 单位 · 金额）</label><div id="receipt-review-rows">${items.map((item,index)=>receiptReviewRow(item,index)).join('')}</div><button class="secondary-button" id="receipt-add-row" style="margin-top:9px">＋ 添加一行</button></div><div class="field"><label>小票总额</label><input id="receipt-total" type="number" min="0" step="0.01" value="${draft.totalCents ? (draft.totalCents/100).toFixed(2) : ''}" placeholder="可留空自动汇总" /></div><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="receipt-confirm">确认入库</button></div>`;
+    }
+    function receiptReviewRow(item={}, index=0) { return `<div class="review-row" data-review-row="${index}"><input data-field="name" value="${receiptHtml(item.rawName || item.name || item.canonicalName)}" placeholder="食材" /><input data-field="quantity" type="number" min="0" step="0.01" value="${item.quantity || ''}" placeholder="数量" /><input data-field="unit" value="${receiptHtml(item.unit || '')}" placeholder="单位" /><input data-field="lineTotal" type="number" min="0" step="0.01" value="${item.lineTotalCents != null ? (item.lineTotalCents/100).toFixed(2) : ''}" placeholder="金额" /><button class="review-remove" data-remove-row="${index}" aria-label="删除">×</button></div>`; }
+    function bindReceiptReview(draft) {
+      $('#receipt-add-row').onclick = () => { const root=$('#receipt-review-rows'); const index=root.querySelectorAll('[data-review-row]').length; root.insertAdjacentHTML('beforeend',receiptReviewRow({},index)); bindReceiptReviewButtons(); };
+      $('#receipt-confirm').onclick = async () => { const items=$$('[data-review-row]').map(row=>({name:row.querySelector('[data-field="name"]').value.trim(),quantity:row.querySelector('[data-field="quantity"]').value,unit:row.querySelector('[data-field="unit"]').value.trim(),lineTotal:row.querySelector('[data-field="lineTotal"]').value})).filter(item=>item.name); if (!items.length) return toast('至少填写一项食材'); const button=$('#receipt-confirm'); button.disabled=true; button.textContent='保存中…'; try { await receiptApi('/api/receipts/confirm',{method:'POST',body:JSON.stringify({storeName:$('#receipt-store').value.trim(),purchaseDate:$('#receipt-date').value,total:$('#receipt-total').value,items,manuallyEdited:true})}); closeModal(); await loadReceiptData(); showScreen('shopping'); toast('小票已确认，食材已加入库存'); } catch(error) { toast(error.message); button.disabled=false; button.textContent='确认入库'; } };
+      bindReceiptReviewButtons();
+    }
+    function bindReceiptReviewButtons() { $$('[data-remove-row]').forEach(button=>button.onclick=()=>button.closest('[data-review-row]')?.remove()); }
+    function openReceiptReview(draft) { openModal(receiptReviewHtml(draft)); bindReceiptReview(draft); }
+    function openReceiptScanModal() {
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>扫描购物小票</h2><button class="close-button" data-close>×</button></div><p class="helper" style="margin-top:-5px">拍清小票上的商店、日期、食材和金额。原图只用于本次识别，确认后保存结构化记录。</p><div class="field"><label class="photo-drop" for="receipt-image"><strong>＋</strong>拍照或选择小票图片<input id="receipt-image" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden /></label><img class="photo-preview" id="receipt-image-preview" alt="小票预览" /></div><div class="modal-actions"><button class="secondary-button" id="receipt-manual">手动录入</button><button class="primary-button" id="receipt-scan-submit">开始识别</button></div>`);
+      let file=null; $('#receipt-image').onchange=event=>{ file=event.target.files?.[0] || null; const preview=$('#receipt-image-preview'); if(file){ preview.src=URL.createObjectURL(file); preview.style.display='block'; } };
+      $('#receipt-manual').onclick=()=>openReceiptReview({provider:false,purchasedAt:new Date().toISOString().slice(0,10),items:[]});
+      $('#receipt-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张小票'); const button=$('#receipt-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',file); try { const result=await receiptApi('/api/receipts/scan',{method:'POST',body:form}); closeModal(); openReceiptReview({...result.receipt,provider:result.provider}); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
+    }
+    const baseShowScreenReceipts = showScreen;
+    showScreen = function(name) { baseShowScreenReceipts(name); if(name==='shopping' && !receiptState.loaded) loadReceiptData(); };
+    $('#receipt-scan-button').onclick=openReceiptScanModal; $('#pantry-receipt-scan').onclick=openReceiptScanModal; $('#receipt-refresh').onclick=loadReceiptData;
     $$('.nav-item, [data-nav]').forEach(el=>el.onclick=()=>showScreen(el.dataset.nav));
     $$('[data-action="add"]').forEach(el=>el.onclick=openAddModal); $$('[data-action="pantry-add"]').forEach(el=>el.onclick=openPantryModal); $$('[data-action="cook"]').forEach(el=>el.onclick=()=>openCook('chicken')); $$('[data-action="clear-shopping"]').forEach(el=>el.onclick=()=>{ state.shoppingList=[]; persist(); renderShopping(); bindDishClicks(); toast('购物清单已清空'); }); $('#open-add').onclick=openAddModal; $('#feature-start').onclick=()=>openDetail('pasta');
     $('#recipe-search').oninput=(e)=>{state.search=e.target.value;renderRecipes();bindDishClicks();}; $$('.filter').forEach(el=>el.onclick=()=>{state.filter=el.dataset.filter;renderRecipes();bindDishClicks();});

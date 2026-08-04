@@ -19,7 +19,7 @@ python -m http.server 4311 --directory designs
 前端会优先请求 `/api/douyin/parse`。本地可启动接口：
 
 ```powershell
-node server/douyin-api.mjs
+node --experimental-sqlite server/douyin-api.mjs
 ```
 
 默认监听 `http://localhost:4320`。如果前端和接口不是同一个地址，可在浏览器控制台设置：

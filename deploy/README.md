@@ -15,7 +15,7 @@ cd food-flow
 git checkout codex/vps-deploy
 cp .env.example .env
 # 编辑 .env，填写经过授权的 DOUYIN_PROVIDER_URL 和 DOUYIN_PROVIDER_TOKEN
-node server/douyin-api.mjs
+node --experimental-sqlite server/douyin-api.mjs
 ```
 
 仓库当前的远程默认分支可能不是部署分支；生产环境必须明确检出包含部署配置的分支（例如 `codex/vps-deploy`），不要直接依赖 `origin/HEAD`。
