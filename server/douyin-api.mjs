@@ -127,12 +127,15 @@ async function scanReceipt(req, res) {
     else if (localOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
   } catch { providerResult = null; providerName = ''; }
-  const draftInput = providerResult?.receipt || providerResult || { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 };
+  const providerDraft = providerResult?.receipt || providerResult || {};
+  const parsedProviderText = !providerDraft.items?.length && (providerDraft.rawText || providerDraft.text) ? parseReceiptText(providerDraft.rawText || providerDraft.text) : {};
+  const draftInput = { ...parsedProviderText, ...providerDraft, rawText: providerDraft.rawText || providerDraft.text || parsedProviderText.rawText || '' };
+  if (!Object.keys(providerDraft).length) Object.assign(draftInput, { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 });
   if (!draftInput.purchasedAt && !draftInput.purchaseDate) draftInput.purchaseDate = fields.purchaseDate || today();
   const draft = normalizeDraft(draftInput, db);
   draft.imageAccepted = true;
   draft.deviceId = deviceId;
-  const recognized = Boolean(providerResult?.rawText || providerResult?.items?.length || providerResult?.receipt?.items?.length);
+  const recognized = Boolean(providerResult?.rawText || providerResult?.text || providerResult?.items?.length || providerResult?.receipt?.items?.length);
   return sendJson(res, 200, { ok: true, status: recognized ? 'needs_review' : 'needs_manual_review', provider: recognized, providerName, message: recognized ? (providerName === 'local-tesseract' ? '已使用本地 OCR 识别，请校对小票明细' : '已识别小票，请校对后确认') : 'OCR 未提取到明细，请手动补充小票内容', receipt: draft });
 }
 
