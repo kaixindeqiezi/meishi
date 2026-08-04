@@ -15,6 +15,7 @@ const providerUrl = process.env.DOUYIN_PROVIDER_URL || '';
 const providerToken = process.env.DOUYIN_PROVIDER_TOKEN || '';
 const receiptOcrUrl = process.env.RECEIPT_OCR_PROVIDER_URL || '';
 const receiptOcrToken = process.env.RECEIPT_OCR_PROVIDER_TOKEN || '';
+const localOcrUrl = process.env.FOODFLOW_LOCAL_OCR_URL || '';
 const execFileAsync = promisify(execFile);
 const localOcrAvailable = (() => { try { execFileSync('tesseract', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const db = createDatabase();
@@ -115,6 +116,7 @@ async function scanReceipt(req, res) {
   let providerResult = null; let providerName = '';
   try {
     if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
+    else if (localOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
   } catch { providerResult = null; providerName = ''; }
   const draftInput = providerResult?.receipt || providerResult || { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 };
@@ -129,7 +131,7 @@ async function scanReceipt(req, res) {
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl) || localOcrAvailable, localOcrAvailable, dbConfigured: true });
+  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
   if (req.method === 'POST' && url.pathname === '/api/receipts/scan') return scanReceipt(req, res);
   if (req.method === 'POST' && url.pathname === '/api/receipts/confirm') {
     const deviceId = deviceIdFromRequest(req); const result = confirmReceipt(JSON.parse(await readBody(req)), deviceId); return sendJson(res, 201, { ok: true, receipt: result });

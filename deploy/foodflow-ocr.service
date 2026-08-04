@@ -1,0 +1,15 @@
+[Unit]
+Description=FoodFlow host receipt OCR bridge
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/foodflow
+Environment=FOODFLOW_OCR_PORT=4331
+ExecStart=/usr/bin/node /opt/foodflow/server/local-ocr-host.mjs
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target

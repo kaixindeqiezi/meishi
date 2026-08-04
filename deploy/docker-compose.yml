@@ -7,6 +7,8 @@ services:
       - ../.env
     volumes:
       - ../data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${FOODFLOW_HOST_PORT:-4320}:4320"
     restart: unless-stopped
