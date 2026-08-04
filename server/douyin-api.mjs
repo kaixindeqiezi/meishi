@@ -59,7 +59,7 @@ function hmac(key, value, encoding = undefined) { return crypto.createHmac('sha2
 
 async function callTencentOcr(buffer, mimeType = 'image/jpeg') {
   const service = 'ocr'; const host = 'ocr.tencentcloudapi.com'; const action = 'GeneralAccurateOCR'; const version = '2018-11-19';
-  const payload = JSON.stringify({ ImageBase64: buffer.toString('base64'), IsWords: false, EnableDetectSplit: true, ConfigID: 'OCR', WordsType: 0 });
+  const payload = JSON.stringify({ ImageBase64: buffer.toString('base64'), IsWords: false, EnableDetectSplit: true, ConfigID: 'OCR', WordsType: '0' });
   const timestamp = Math.floor(Date.now() / 1000); const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
   const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${host}\n`;
   const signedHeaders = 'content-type;host'; const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${sha256(payload)}`;
