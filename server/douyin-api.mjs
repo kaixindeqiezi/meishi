@@ -8,12 +8,21 @@ import { promisify } from 'node:util';
 import { URL } from 'node:url';
 import Busboy from 'busboy';
 import { createDatabase, deviceIdFromRequest, withTransaction } from './db.mjs';
+import { createDedaoClient } from './dedao-service.mjs';
 import { analyzeLabel, enrichStandards } from './label-service.mjs';
 import { buildPriceTrends, id, listLots, normalizeDraft, parseReceiptText, today } from './receipt-service.mjs';
 
 const port = Number(process.env.FOODFLOW_API_PORT || 4320);
 const providerUrl = process.env.DOUYIN_PROVIDER_URL || '';
 const providerToken = process.env.DOUYIN_PROVIDER_TOKEN || '';
+const dedaoClient = createDedaoClient({
+  baseUrl: process.env.DEDAO_API_BASE || 'https://openapi.biji.com',
+  apiKey: process.env.DEDAO_API_KEY || '',
+  clientId: process.env.DEDAO_CLIENT_ID || '',
+  pollIntervalMs: Number(process.env.DEDAO_POLL_INTERVAL_MS || 5000),
+  timeoutMs: Number(process.env.DEDAO_REQUEST_TIMEOUT_MS || 15000),
+  maxWaitMs: Number(process.env.DEDAO_MAX_WAIT_MS || 90000)
+});
 const receiptOcrUrl = process.env.RECEIPT_OCR_PROVIDER_URL || '';
 const receiptOcrToken = process.env.RECEIPT_OCR_PROVIDER_TOKEN || '';
 const localOcrUrl = process.env.FOODFLOW_LOCAL_OCR_URL || '';
@@ -24,6 +33,7 @@ const tencentOcrConfigured = Boolean(tencentSecretId && tencentSecretKey);
 const execFileAsync = promisify(execFile);
 const localOcrAvailable = (() => { try { execFileSync('tesseract', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const db = createDatabase();
+const dedaoJobs = new Map();
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -197,6 +207,19 @@ async function scanLabelText(req, res) {
   return sendJson(res, 200, { ok: true, status: report.confidence ? 'needs_review' : 'needs_manual_review', provider: false, providerName: 'manual', message: report.summary, report });
 }
 
+function startDedaoJob(source) {
+  const jobId = `dedao-${crypto.randomUUID()}`;
+  const job = { jobId, status: 'processing', providerName: 'dedao-brain', source, createdAt: Date.now() };
+  dedaoJobs.set(jobId, job);
+  void dedaoClient.resolveLink(source.url).then(result => {
+    dedaoJobs.set(jobId, { ...job, ...result, status: 'completed', completedAt: Date.now() });
+  }).catch(error => {
+    dedaoJobs.set(jobId, { ...job, status: 'failed', error: error.code || 'dedao_failed', message: error.message || '得到大脑解析失败', completedAt: Date.now() });
+  });
+  setTimeout(() => dedaoJobs.delete(jobId), 15 * 60 * 1000).unref?.();
+  return job;
+}
+
 function confirmLabel(input, deviceId) {
   const report = input.report || analyzeLabel(input.rawText || '');
   const labelId = id('label');
@@ -207,7 +230,7 @@ function confirmLabel(input, deviceId) {
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), tencentOcrConfigured, receiptOcrConfigured: tencentOcrConfigured || Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
+  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), dedaoConfigured: dedaoClient.configured, tencentOcrConfigured, receiptOcrConfigured: tencentOcrConfigured || Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
   if (req.method === 'POST' && url.pathname === '/api/receipts/scan') return scanReceipt(req, res);
   if (req.method === 'POST' && url.pathname === '/api/labels/scan') return scanLabel(req, res);
   if (req.method === 'POST' && url.pathname === '/api/labels/scan-text') return scanLabelText(req, res);
@@ -222,6 +245,11 @@ async function handle(req, res) {
   if (req.method === 'POST' && url.pathname === '/api/labels/confirm') {
     const result = confirmLabel(JSON.parse(await readBody(req)), deviceIdFromRequest(req));
     return sendJson(res, 201, { ok: true, label: result });
+  }
+  const dedaoJobMatch = url.pathname.match(/^\/api\/douyin\/parse\/status\/([^/]+)$/);
+  if (req.method === 'GET' && dedaoJobMatch) {
+    const job = dedaoJobs.get(dedaoJobMatch[1]);
+    return job ? sendJson(res, 200, { ok: true, ...job }) : sendJson(res, 404, { ok: false, error: 'job_not_found', message: '解析任务不存在或已过期' });
   }
   if (req.method === 'GET' && url.pathname === '/api/labels') {
     const deviceId = deviceIdFromRequest(req); const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') || 20)));
@@ -255,6 +283,10 @@ async function handle(req, res) {
     const input = JSON.parse(await readBody(req)); const source = normalizeSource(input.source || input.link || input.shareText);
     if (!source.raw) return sendJson(res, 400, { ok: false, error: 'source_required', message: '请提供抖音链接或分享口令' });
     if (!source.isDouyin) return sendJson(res, 422, { ok: false, error: 'unsupported_source', message: '暂时只支持抖音链接或分享口令' });
+    if (dedaoClient.configured) {
+      if (!source.url) return sendJson(res, 422, { ok: false, error: 'dedao_url_required', message: '得到大脑需要可访问的抖音完整链接，分享口令请先展开后再粘贴' });
+      return sendJson(res, 202, { ok: true, ...startDedaoJob(source) });
+    }
     const providerResult = await callProvider({ source, note: input.note || '', screenshot: input.screenshot || '' });
     if (providerResult) return sendJson(res, 200, { ok: true, ...providerResult, source });
     return sendJson(res, 200, { ok: true, status: 'needs_review', source, confidence: 58, message: '已收到抖音来源，但尚未配置内容解析供应商；请在前端补充文字或截图。' });

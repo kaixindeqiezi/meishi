@@ -53,3 +53,14 @@ curl -f https://你的域名/food-flow/index.html
 curl -f https://你的域名/health
 docker compose -f deploy/docker-compose.yml ps
 ```
+## 得到大脑抖音菜谱解析
+
+FoodFlow 可以把抖音链接交给得到大脑异步处理，只保存得到大脑的文字总结和一张封面图。将以下配置写入 VPS 的 `.env`，不要提交到 GitHub：
+
+```env
+DEDAO_API_BASE=https://openapi.biji.com
+DEDAO_API_KEY=你的得到大脑APIKey
+DEDAO_CLIENT_ID=你的ClientID
+```
+
+得到大脑的解析是异步任务，前端会显示处理中并自动轮询；任务完成后返回摘要和封面，用户确认后再保存为菜谱草稿。若未配置得到大脑，接口仍会降级到文字/截图人工校对流程。
