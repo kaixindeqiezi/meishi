@@ -31,8 +31,11 @@ async function ocr(input) {
   const filename = path.join(os.tmpdir(), `foodflow-host-ocr-${crypto.randomUUID()}${extension}`);
   await fs.writeFile(filename, Buffer.from(input.imageBase64, 'base64'));
   try {
-    const { stdout } = await execFileAsync('tesseract', [filename, 'stdout', '-l', 'chi_sim+eng'], { timeout: 20000, maxBuffer: 2 * 1024 * 1024 });
-    return { ok: true, ...parseReceiptText(stdout) };
+    const run = async psm => (await execFileAsync('tesseract', [filename, 'stdout', '-l', 'chi_sim+eng', '--psm', String(psm)], { timeout: 12000, maxBuffer: 2 * 1024 * 1024 })).stdout;
+    const first = parseReceiptText(await run(6));
+    if (first.items.length || String(input.task || '').toLowerCase() === 'food-label') return { ok: true, ...first };
+    const second = parseReceiptText(await run(11));
+    return { ok: true, ...(second.rawText.length > first.rawText.length ? second : first) };
   } finally { await fs.unlink(filename).catch(() => {}); }
 }
 

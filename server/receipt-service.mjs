@@ -5,7 +5,7 @@ const UNIT_ALIASES = new Map([
   ['公斤', 'kg'], ['千克', 'kg'], ['kg', 'kg'], ['斤', 'jin'], ['克', 'g'], ['g', 'g'],
   ['毫升', 'ml'], ['ml', 'ml'], ['升', 'l'], ['l', 'l'], ['个', 'each'], ['袋', 'pack'], ['盒', 'pack']
 ]);
-const RECEIPT_NOISE = /^(合计|总计|应付|实付|支付|金额|找零|优惠|折扣|现金|微信|支付宝|收银员|小票|商品|数量|单价|欢迎光临|谢谢惠顾|码洋|会员)/i;
+const RECEIPT_NOISE = /^(合\s*计|总\s*计|应\s*付|实\s*付|支付|金额|找\s*零|优惠|折扣|现金|微信|支付宝|收银员|小票|商品|数量|单价|欢迎光临|谢谢惠顾|码洋|会员|订单|流水)/i;
 
 export function today() { return new Date().toISOString().slice(0, 10); }
 export function id(prefix) { return `${prefix}_${crypto.randomUUID()}`; }
@@ -28,28 +28,36 @@ export function dateDiffDays(from, to = today()) {
 }
 
 export function parseReceiptText(rawText) {
-  const lines = String(rawText || '').split(/\r?\n/).map(line => line.replace(/[|｜]/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const lines = String(rawText || '').split(/\r?\n/).map(line => line.replace(/[|｜]/g, ' ').replace(/(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   let purchasedAt = '';
-  const dateMatch = lines.join(' ').match(/(20\d{2})[\/.年-](\d{1,2})[\/.月-](\d{1,2})/);
+  const dateMatch = lines.join(' ').match(/(20\s*\d{2})\s*[\/.年-]\s*(\d{1,2})\s*[\/.月-]\s*(\d{1,2})/);
   if (dateMatch) purchasedAt = `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, '0')}-${String(dateMatch[3]).padStart(2, '0')}`;
   let total = null;
   for (const line of lines) {
-    const totalMatch = line.match(/(?:合计|总计|应付|实付|支付|金额|amount)[^\d]{0,10}(\d+[.,]\d{1,2})/i);
-    if (totalMatch) total = totalMatch[1];
+    const totalMatch = line.match(/(?:合\s*计|总\s*计|应\s*付|实\s*付|支付|金额|amount)[^\d]{0,14}(\d{1,6}(?:[.,]\d{1,2})?)/i);
+    if (totalMatch) total = totalMatch[1].replace(',', '.');
   }
+  const storeName = lines.slice(0, 6).find(line => /超市|便利|商场|市场|生鲜|百货|购物|店|market|mart/i.test(line)) || '';
   const items = [];
   for (const line of lines) {
     if (RECEIPT_NOISE.test(line) || /\d{4}[\/.年-]\d{1,2}[\/.月-]\d{1,2}/.test(line)) continue;
-    const priceMatch = line.match(/(?:¥|￥)?(\d+[.,]\d{1,2})\s*$/);
+    const priceMatches = [...line.matchAll(/(?:¥|￥)?(\d{1,6}(?:[.,]\d{1,2}))(?!\d)/g)];
+    const priceMatch = priceMatches.at(-1);
     if (!priceMatch) continue;
     const beforePrice = line.slice(0, priceMatch.index).trim().replace(/(?:¥|￥)$/, '').trim();
-    if (!beforePrice || /^[\d\s.,]+$/.test(beforePrice) || beforePrice.length > 40) continue;
+    if (!beforePrice || /^[\d\s.,]+$/.test(beforePrice) || beforePrice.length > 50 || !/[\u4e00-\u9fffA-Za-z]/.test(beforePrice)) continue;
     let name = beforePrice, quantity = null, unit = null;
-    const quantityMatch = beforePrice.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s*(kg|公斤|斤|克|g|毫升|ml|个|袋|盒)?$/i);
-    if (quantityMatch && quantityMatch[1].trim().length >= 1) { name = quantityMatch[1].trim(); quantity = quantityMatch[2]; unit = quantityMatch[3] || null; }
-    items.push({ name, quantity, unit, lineTotal: priceMatch[1], confidence: 62 });
+    const quantitySource = beforePrice.replace(/\s+\d{1,6}[.,]\d{1,2}\s*$/, '').trim();
+    const quantityMatch = quantitySource.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/i);
+    if (quantityMatch && quantityMatch[1].trim().length >= 1) { name = quantityMatch[1].trim(); quantity = quantityMatch[2].replace(',', '.'); unit = quantityMatch[3] || null; }
+    else {
+      const numericTail = [...beforePrice.matchAll(/(\d+(?:[.,]\d+)?)(?:\s*)(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/i)].at(-1);
+      if (numericTail && numericTail.index > 0) { name = beforePrice.slice(0, numericTail.index).trim(); quantity = numericTail[1].replace(',', '.'); unit = numericTail[2] || null; }
+    }
+    if (name.length < 1 || RECEIPT_NOISE.test(name)) continue;
+    items.push({ name, quantity, unit, lineTotal: priceMatch[1].replace(',', '.'), confidence: priceMatches.length > 1 ? 70 : 62 });
   }
-  return { rawText: lines.join('\n'), purchasedAt, total, items, confidence: items.length ? 62 : 0 };
+  return { rawText: lines.join('\n'), storeName, purchasedAt, total, items, confidence: items.length ? Math.max(...items.map(item => item.confidence)) : 0 };
 }
 
 export function normalizeItem(item, db, manuallyEdited = false) {

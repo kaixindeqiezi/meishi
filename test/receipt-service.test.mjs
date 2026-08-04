@@ -36,6 +36,17 @@ test('parses common OCR receipt lines into editable draft fields', () => {
   assert.equal(parsed.items[0].unit, 'kg');
 });
 
+test('parses spaced Chinese OCR columns and totals', () => {
+  const parsed = parseReceiptText('某某生鲜超市\n2026-08-04 19:20\n番 茄 1 kg 12.50 12.50\n鸡 蛋 2 个 8.00\n合 计 20.50');
+  assert.equal(parsed.storeName, '某某生鲜超市');
+  assert.equal(parsed.purchasedAt, '2026-08-04');
+  assert.equal(parsed.total, '20.50');
+  assert.equal(parsed.items.length, 2);
+  assert.equal(parsed.items[0].name, '番茄');
+  assert.equal(parsed.items[0].quantity, '1');
+  assert.equal(parsed.items[0].lineTotal, '12.50');
+});
+
 test('price advice waits for three comparable observations', () => {
   const { db, dir } = testDb();
   const insertReceipt = db.prepare(`INSERT INTO receipts(id, device_id, store_name, purchased_at, scanned_at, total_cents, status) VALUES (?, ?, ?, ?, ?, ?, 'confirmed')`);
