@@ -54,10 +54,30 @@ export function parseReceiptText(rawText) {
       const numericTail = [...beforePrice.matchAll(/(\d+(?:[.,]\d+)?)(?:\s*)(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/gi)].at(-1);
       if (numericTail && numericTail.index > 0) { name = beforePrice.slice(0, numericTail.index).trim(); quantity = numericTail[1].replace(',', '.'); unit = numericTail[2] || null; }
     }
-    if (name.length < 1 || RECEIPT_NOISE.test(name)) continue;
+    const quantityNumber = quantity === null ? null : Number(quantity);
+    if (name.length < 1 || RECEIPT_NOISE.test(name) || (quantityNumber !== null && (!Number.isFinite(quantityNumber) || quantityNumber > 1000))) continue;
     items.push({ name, quantity, unit, lineTotal: priceMatch[1].replace(',', '.'), confidence: priceMatches.length > 1 ? 70 : 62 });
   }
-  return { rawText: lines.join('\n'), storeName, purchasedAt, total, items, confidence: items.length ? Math.max(...items.map(item => item.confidence)) : 0 };
+  const pairedItems = [];
+  const seenPairs = new Set();
+  const nameLine = line => !RECEIPT_NOISE.test(line) && !/[\d]/.test(line) && /[\u4e00-\u9fff]/.test(line) && line.length <= 24;
+  for (let index = 0; index < lines.length; index += 1) {
+    const numericLine = lines[index];
+    const values = [...numericLine.matchAll(/(\d{1,6}(?:[.,]\d{1,2}))/g)].map(match => match[1].replace(',', '.'));
+    if (!values.length) continue;
+    for (const neighbor of [lines[index - 1], lines[index + 1]]) {
+      if (!neighbor || !nameLine(neighbor)) continue;
+      const lineTotal = values.at(-1);
+      const quantityValue = values.length > 1 ? Number(values.at(-2)) : null;
+      if (quantityValue !== null && quantityValue > 1000) continue;
+      const key = `${neighbor}|${lineTotal}`;
+      if (seenPairs.has(key)) continue;
+      seenPairs.add(key);
+      pairedItems.push({ name: neighbor, quantity: quantityValue !== null && Number.isFinite(quantityValue) ? String(quantityValue) : null, unit: null, lineTotal, confidence: 55 });
+    }
+  }
+  const finalItems = pairedItems.length ? pairedItems : items;
+  return { rawText: lines.join('\n'), storeName, purchasedAt, total, items: finalItems, confidence: finalItems.length ? Math.max(...finalItems.map(item => item.confidence)) : 0 };
 }
 
 export function normalizeItem(item, db, manuallyEdited = false) {
