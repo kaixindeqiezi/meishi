@@ -11,23 +11,26 @@ def preprocess(source: str, target: str) -> None:
     original_width, original_height = image.size
     probe = image.copy()
     probe.thumbnail((900, 900))
-    mask = probe.point(lambda pixel: 255 if pixel >= 155 else 0)
-    box = mask.getbbox()
-    if box:
-        probe_area = probe.width * probe.height
-        box_area = (box[2] - box[0]) * (box[3] - box[1])
-        if probe_area * 0.12 < box_area < probe_area * 0.92:
-            scale_x = original_width / probe.width
-            scale_y = original_height / probe.height
-            pad_x = int(18 * scale_x)
-            pad_y = int(18 * scale_y)
-            box = (
-                max(0, int(box[0] * scale_x) - pad_x),
-                max(0, int(box[1] * scale_y) - pad_y),
-                min(original_width, int(box[2] * scale_x) + pad_x),
-                min(original_height, int(box[3] * scale_y) + pad_y),
-            )
-            image = image.crop(box)
+    pixels = probe.load()
+    bright_columns = []
+    for x in range(probe.width):
+        bright = sum(1 for y in range(probe.height) if pixels[x, y] >= 155)
+        bright_columns.append(bright / probe.height)
+    runs = []
+    start = None
+    for x, ratio in enumerate(bright_columns + [0]):
+        if ratio >= 0.28 and start is None:
+            start = x
+        elif ratio < 0.28 and start is not None:
+            if x - start >= max(20, int(probe.width * 0.12)):
+                runs.append((start, x))
+            start = None
+    if runs:
+        left, right = max(runs, key=lambda run: run[1] - run[0])
+        scale_x = original_width / probe.width
+        pad_x = int(24 * scale_x)
+        box = (max(0, int(left * scale_x) - pad_x), 0, min(original_width, int(right * scale_x) + pad_x), original_height)
+        image = image.crop(box)
     image = ImageOps.autocontrast(image, cutoff=1)
     image = ImageEnhance.Contrast(image).enhance(1.35)
     image = image.filter(ImageFilter.MedianFilter(size=3)).filter(ImageFilter.SHARPEN)
