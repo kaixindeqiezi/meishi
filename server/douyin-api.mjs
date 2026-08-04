@@ -128,7 +128,7 @@ async function scanReceipt(req, res) {
     if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
     else if (localOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
-  } catch { providerResult = null; providerName = ''; }
+  } catch (error) { console.error(`receipt OCR failed: ${error?.name || 'Error'} ${error?.message || ''}`); providerResult = null; providerName = ''; }
   const providerDraft = providerResult?.receipt || providerResult || {};
   const parsedProviderText = !providerDraft.items?.length && (providerDraft.rawText || providerDraft.text) ? parseReceiptText(providerDraft.rawText || providerDraft.text) : {};
   const draftInput = { ...parsedProviderText, ...providerDraft, rawText: providerDraft.rawText || providerDraft.text || parsedProviderText.rawText || '' };
@@ -150,7 +150,7 @@ async function scanLabel(req, res) {
     if (receiptOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
     else if (localOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { ocr = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
-  } catch { ocr = null; providerName = ''; }
+  } catch (error) { console.error(`label OCR failed: ${error?.name || 'Error'} ${error?.message || ''}`); ocr = null; providerName = ''; }
   const rawText = String(ocr?.rawText || ocr?.text || ocr?.receipt?.rawText || '');
   const report = analyzeLabel(rawText);
   return sendJson(res, 200, { ok: true, status: report.confidence ? 'needs_review' : 'needs_manual_review', provider: Boolean(rawText), providerName, message: report.summary, report: { ...report, deviceId } });
