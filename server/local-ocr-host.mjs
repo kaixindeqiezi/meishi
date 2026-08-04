@@ -29,11 +29,17 @@ async function ocr(input) {
   if (!input.imageBase64) throw Object.assign(new Error('imageBase64 is required'), { statusCode: 400 });
   const extension = String(input.mimeType || '').includes('png') ? '.png' : String(input.mimeType || '').includes('webp') ? '.webp' : '.jpg';
   const filename = path.join(os.tmpdir(), `foodflow-host-ocr-${crypto.randomUUID()}${extension}`);
+  const enhancedFilename = path.join(os.tmpdir(), `foodflow-host-ocr-enhanced-${crypto.randomUUID()}.jpg`);
   await fs.writeFile(filename, Buffer.from(input.imageBase64, 'base64'));
   try {
-    const { stdout } = await execFileAsync('tesseract', [filename, 'stdout', '-l', 'chi_sim+eng', '--psm', '6'], { timeout: 20000, maxBuffer: 2 * 1024 * 1024 });
+    let target = filename;
+    try {
+      await execFileAsync('python3', [path.join(process.cwd(), 'server', 'ocr-preprocess.py'), filename, enhancedFilename], { timeout: 8000, maxBuffer: 256 * 1024 });
+      target = enhancedFilename;
+    } catch {}
+    const { stdout } = await execFileAsync('tesseract', [target, 'stdout', '-l', 'chi_sim+eng', '--psm', '6'], { timeout: 20000, maxBuffer: 2 * 1024 * 1024 });
     return { ok: true, ...parseReceiptText(stdout) };
-  } finally { await fs.unlink(filename).catch(() => {}); }
+  } finally { await fs.unlink(filename).catch(() => {}); await fs.unlink(enhancedFilename).catch(() => {}); }
 }
 
 const server = http.createServer(async (req, res) => {
