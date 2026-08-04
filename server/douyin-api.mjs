@@ -40,7 +40,9 @@ function normalizeSource(source = '') {
 async function callProvider(payload, url = providerUrl, token = providerToken) {
   if (!url) return null;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(process.env.RECEIPT_OCR_TIMEOUT_MS || 15000));
+  const configuredTimeout = Number(process.env.RECEIPT_OCR_TIMEOUT_MS || 15000);
+  const timeoutMs = url === localOcrUrl ? Math.max(configuredTimeout, 30000) : configuredTimeout;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(payload), signal: controller.signal });
     if (!response.ok) throw new Error(`provider returned ${response.status}`);
