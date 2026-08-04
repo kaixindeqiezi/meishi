@@ -51,7 +51,7 @@ export function parseReceiptText(rawText) {
     const quantityMatch = quantitySource.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/i);
     if (quantityMatch && quantityMatch[1].trim().length >= 1) { name = quantityMatch[1].trim(); quantity = quantityMatch[2].replace(',', '.'); unit = quantityMatch[3] || null; }
     else {
-      const numericTail = [...beforePrice.matchAll(/(\d+(?:[.,]\d+)?)(?:\s*)(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/i)].at(-1);
+      const numericTail = [...beforePrice.matchAll(/(\d+(?:[.,]\d+)?)(?:\s*)(kg|公斤|斤|克|g|毫升|ml|个|袋|盒|份|件)?$/gi)].at(-1);
       if (numericTail && numericTail.index > 0) { name = beforePrice.slice(0, numericTail.index).trim(); quantity = numericTail[1].replace(',', '.'); unit = numericTail[2] || null; }
     }
     if (name.length < 1 || RECEIPT_NOISE.test(name)) continue;
