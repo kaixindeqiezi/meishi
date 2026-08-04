@@ -507,7 +507,7 @@
             state.dishes.unshift({
               id: `dedao-${Date.now()}`,
               title: `${title}（待确认）`,
-              desc: summary || '得到大脑已返回内容，请打开原视频补充细节。',
+              desc: String(remote.characteristics || summary || '得到大脑已返回内容，请打开原视频补充细节。'),
               thumb: 'thumb-pasta',
               image: cover,
               tags: ['待确认', '得到大脑摘要'],
@@ -520,9 +520,11 @@
               importConfidence: remote.confidence || 0,
               importMethod: 'dedao-summary',
               aiStatus: 'dedao-summary',
-              ingredients: [],
-              steps: [{title: '得到大脑总结', desc: summary || '暂未返回总结，请回看原视频后补充。', tip: '封面不能替代火候、颜色和摆盘判断，开始做菜前请确认原视频。', time: 120}],
-              expected: '已保留抖音封面作为参考；火候、颜色和摆盘请以原视频为准。'
+              summary,
+              characteristics: String(remote.characteristics || '这道菜的详细特点需要结合得到大脑总结和原视频进一步确认。'),
+              ingredients: (remote.ingredients || []).map(item => ({name: item.name || item, amount: item.amount || '适量'})),
+              steps: remote.steps?.length ? remote.steps : [{title: '得到大脑总结', desc: summary || '暂未返回总结，请回看原视频后补充。', tip: '封面不能替代火候、颜色和摆盘判断，开始做菜前请确认原视频。', time: 120}],
+              expected: String(remote.characteristics || '已保留抖音封面作为参考；火候、颜色和摆盘请以原视频为准。')
             });
             persist(); closeModal(); renderAll(); showScreen('recipes'); toast('已保存得到大脑摘要草稿，请确认后入库');
             return;
@@ -550,6 +552,12 @@
       baseOpenDetail(id);
       const dish = state.dishes.find(d => d.id === id); const art = $('#modal-content .detail-art');
       if (!dish || !art || !dish.sourceUrl) return;
+      if (dish.aiStatus === 'dedao-summary') {
+        $$('#modal-content .detail-block h3').forEach(heading => {
+          if (heading.textContent.includes('食材')) heading.textContent = '原材料';
+          if (heading.textContent.includes('做法')) heading.textContent = '做法步骤';
+        });
+      }
       if (dish.aiStatus === 'not-configured') { const badge = $('#modal-content .modal-head .pill'); if (badge) badge.textContent = '本地模板 · 待确认'; }
       const sourceRow = document.createElement('div'); sourceRow.className = 'source-detail-row';
       if (/^https?:\/\//i.test(dish.sourceUrl)) {
@@ -558,6 +566,11 @@
         sourceRow.textContent = `来源：${dish.sourceCreator || '抖音'} · 已保存分享口令，打开抖音后可手动回看`;
       }
       art.insertAdjacentElement('afterend', sourceRow);
+      if (dish.characteristics) {
+        const characteristics = document.createElement('div'); characteristics.className = 'detail-block';
+        characteristics.innerHTML = `<h3>这道菜的特点</h3><div class="recommend-card"><p class="recommend-reason">${receiptHtml(dish.characteristics)}</p></div>`;
+        const firstBlock = $('#modal-content .detail-block'); firstBlock?.insertAdjacentElement('afterend', characteristics);
+      }
     };
     const receiptState = {receipts:[], lots:[], trends:[], loaded:false};
     const receiptApiBase = (window.FOODFLOW_RECEIPTS_API_BASE || (window.FOODFLOW_API_URL || '').replace(/\/api\/douyin\/parse\/?$/, '') || window.location.origin).replace(/\/$/, '');

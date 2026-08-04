@@ -18,10 +18,12 @@ test('dedao adapter saves a link, polls it, and returns summary plus cover', asy
     assert.equal(result.providerName, 'dedao-brain');
     assert.equal(result.title, '番茄炒蛋');
     assert.equal(result.coverUrl, 'https://cdn.example.com/cover.jpg');
+    assert.ok(Array.isArray(result.ingredients));
+    assert.ok(Array.isArray(result.steps));
+    assert.equal(typeof result.characteristics, 'string');
     assert.equal(calls[0].options.headers.Authorization, 'gk_live_test');
     assert.equal(calls[0].options.headers['X-Client-ID'], 'cli_test');
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
-
