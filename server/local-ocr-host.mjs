@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { parseReceiptText } from './receipt-service.mjs';
 
 const port = Number(process.env.FOODFLOW_OCR_PORT || 4331);
+const host = process.env.FOODFLOW_OCR_HOST || '127.0.0.1';
 const execFileAsync = promisify(execFile);
 
 function send(res, status, payload) {
@@ -43,4 +44,4 @@ const server = http.createServer(async (req, res) => {
   catch (error) { return send(res, error.statusCode || 500, { ok: false, error: error.message || 'ocr_failed' }); }
 });
 
-server.listen(port, '127.0.0.1', () => console.log(`FoodFlow host OCR listening on http://127.0.0.1:${port}`));
+server.listen(port, host, () => console.log(`FoodFlow host OCR listening on http://${host}:${port}`));

@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/foodflow
 Environment=FOODFLOW_OCR_PORT=4331
+Environment=FOODFLOW_OCR_HOST=10.255.0.1
 ExecStart=/usr/bin/node /opt/foodflow/server/local-ocr-host.mjs
 Restart=always
 RestartSec=3
