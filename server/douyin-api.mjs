@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { URL } from 'node:url';
 import Busboy from 'busboy';
 import { createDatabase, deviceIdFromRequest, withTransaction } from './db.mjs';
+import { analyzeLabel, enrichStandards } from './label-service.mjs';
 import { buildPriceTrends, id, listLots, normalizeDraft, parseReceiptText, today } from './receipt-service.mjs';
 
 const port = Number(process.env.FOODFLOW_API_PORT || 4320);
@@ -90,6 +91,13 @@ function receiptView(receiptId, deviceId) {
   return receipt;
 }
 
+function labelView(labelId, deviceId) {
+  const row = db.prepare(`SELECT id, scanned_at AS scannedAt, product_name AS productName, raw_text AS rawText, report_json AS reportJson, ocr_confidence AS ocrConfidence FROM label_scans WHERE id = ? AND device_id = ?`).get(labelId, deviceId);
+  if (!row) return null;
+  let report = {}; try { report = JSON.parse(row.reportJson); } catch {}
+  return { id: row.id, scannedAt: row.scannedAt, productName: row.productName, rawText: row.rawText, ocrConfidence: row.ocrConfidence, report };
+}
+
 function confirmReceipt(input, deviceId) {
   const draft = normalizeDraft(input, db);
   if (!draft.items.length) throw Object.assign(new Error('至少需要一条食材明细'), { statusCode: 400 });
@@ -128,11 +136,41 @@ async function scanReceipt(req, res) {
   return sendJson(res, 200, { ok: true, status: recognized ? 'needs_review' : 'needs_manual_review', provider: recognized, providerName, message: recognized ? (providerName === 'local-tesseract' ? '已使用本地 OCR 识别，请校对小票明细' : '已识别小票，请校对后确认') : 'OCR 未提取到明细，请手动补充小票内容', receipt: draft });
 }
 
+async function scanLabel(req, res) {
+  const deviceId = deviceIdFromRequest(req);
+  const { file } = await readMultipart(req);
+  if (!file?.buffer?.length) return sendJson(res, 400, { ok: false, error: 'image_required', message: '请上传配料表图片' });
+  let ocr = null; let providerName = '';
+  try {
+    if (receiptOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
+    else if (localOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
+    else if (localOcrAvailable) { ocr = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
+  } catch { ocr = null; providerName = ''; }
+  const rawText = String(ocr?.rawText || ocr?.text || ocr?.receipt?.rawText || '');
+  const report = analyzeLabel(rawText);
+  return sendJson(res, 200, { ok: true, status: report.confidence ? 'needs_review' : 'needs_manual_review', provider: Boolean(rawText), providerName, message: report.summary, report: { ...report, deviceId } });
+}
+
+async function scanLabelText(req, res) {
+  const input = JSON.parse(await readBody(req));
+  const report = analyzeLabel(String(input.rawText || ''));
+  return sendJson(res, 200, { ok: true, status: report.confidence ? 'needs_review' : 'needs_manual_review', provider: false, providerName: 'manual', message: report.summary, report });
+}
+
+function confirmLabel(input, deviceId) {
+  const report = input.report || analyzeLabel(input.rawText || '');
+  const labelId = id('label');
+  db.prepare(`INSERT INTO label_scans(id, device_id, scanned_at, product_name, raw_text, report_json, ocr_confidence) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(labelId, deviceId, new Date().toISOString(), String(report.productName || input.productName || ''), String(report.rawText || input.rawText || ''), JSON.stringify(report), Number(report.confidence || 0));
+  return labelView(labelId, deviceId);
+}
+
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
   if (req.method === 'POST' && url.pathname === '/api/receipts/scan') return scanReceipt(req, res);
+  if (req.method === 'POST' && url.pathname === '/api/labels/scan') return scanLabel(req, res);
+  if (req.method === 'POST' && url.pathname === '/api/labels/scan-text') return scanLabelText(req, res);
   if (req.method === 'POST' && url.pathname === '/api/receipts/confirm') {
     const deviceId = deviceIdFromRequest(req); const result = confirmReceipt(JSON.parse(await readBody(req)), deviceId); return sendJson(res, 201, { ok: true, receipt: result });
   }
@@ -140,6 +178,25 @@ async function handle(req, res) {
     const deviceId = deviceIdFromRequest(req); const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 20)));
     const rows = db.prepare(`SELECT id FROM receipts WHERE device_id = ? ORDER BY purchased_at DESC, scanned_at DESC LIMIT ?`).all(deviceId, limit).map(row => receiptView(row.id, deviceId));
     return sendJson(res, 200, { ok: true, receipts: rows });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/labels/confirm') {
+    const result = confirmLabel(JSON.parse(await readBody(req)), deviceIdFromRequest(req));
+    return sendJson(res, 201, { ok: true, label: result });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/labels') {
+    const deviceId = deviceIdFromRequest(req); const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') || 20)));
+    const labels = db.prepare(`SELECT id FROM label_scans WHERE device_id = ? ORDER BY scanned_at DESC LIMIT ?`).all(deviceId, limit).map(row => labelView(row.id, deviceId));
+    return sendJson(res, 200, { ok: true, labels });
+  }
+  const labelMatch = url.pathname.match(/^\/api\/labels\/([^/]+)$/);
+  if (req.method === 'GET' && labelMatch) {
+    const label = labelView(labelMatch[1], deviceIdFromRequest(req));
+    return label ? sendJson(res, 200, { ok: true, label }) : sendJson(res, 404, { ok: false, error: 'label_not_found' });
+  }
+  const standardMatch = url.pathname.match(/^\/api\/standards\/(.+)$/);
+  if (req.method === 'GET' && standardMatch) {
+    const code = decodeURIComponent(standardMatch[1]).replace(/\s+/g, ' ');
+    return sendJson(res, 200, { ok: true, standard: enrichStandards([code])[0] });
   }
   if (req.method === 'GET' && url.pathname === '/api/pantry/lots') {
     return sendJson(res, 200, { ok: true, lots: listLots(db, deviceIdFromRequest(req)) });

@@ -44,6 +44,15 @@ export function createDatabase(filename = process.env.FOODFLOW_DB_PATH || './dat
       status TEXT NOT NULL DEFAULT 'in_stock',
       consumed_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS label_scans (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL,
+      scanned_at TEXT NOT NULL,
+      product_name TEXT NOT NULL DEFAULT '',
+      raw_text TEXT NOT NULL DEFAULT '',
+      report_json TEXT NOT NULL,
+      ocr_confidence REAL NOT NULL DEFAULT 0
+    );
     CREATE TABLE IF NOT EXISTS ingredient_aliases (
       alias TEXT PRIMARY KEY,
       canonical_name TEXT NOT NULL
@@ -51,6 +60,7 @@ export function createDatabase(filename = process.env.FOODFLOW_DB_PATH || './dat
     CREATE INDEX IF NOT EXISTS idx_receipts_device_date ON receipts(device_id, purchased_at);
     CREATE INDEX IF NOT EXISTS idx_items_canonical ON receipt_items(canonical_name);
     CREATE INDEX IF NOT EXISTS idx_lots_device_status ON pantry_lots(device_id, status);
+    CREATE INDEX IF NOT EXISTS idx_labels_device_date ON label_scans(device_id, scanned_at);
   `);
   const aliases = [
     ['西红柿', '番茄'], ['小番茄', '番茄'], ['土豆', '马铃薯'], ['青椒', '青辣椒'],

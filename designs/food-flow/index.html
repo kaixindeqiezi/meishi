@@ -150,7 +150,7 @@
     .changelog-item { display: flex; gap: 8px; color: #6f6258; font-size: 11px; line-height: 1.5; }
     .changelog-item::before { content: "＋"; color: var(--sage); font-weight: 900; }
     .current-label { color: #58714d; background: var(--sage-light); padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
-    .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 460px); padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(65,53,44,.08); display: grid; grid-template-columns: repeat(5,1fr); gap: 3px; }
+    .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 460px); padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); background: rgba(251,248,242,.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(65,53,44,.08); display: grid; grid-template-columns: repeat(6,1fr); gap: 2px; }
     .nav-item { background: transparent; color: var(--muted); display: grid; place-items: center; gap: 4px; padding: 5px 0; font-size: 10px; font-weight: 700; border-radius: 13px; }
     .nav-item .nav-icon { font-size: 18px; line-height: 1; }
     .nav-item.active { color: var(--tomato); background: #fff; box-shadow: 0 4px 12px rgba(76,49,31,.07); }
@@ -251,6 +251,21 @@
     .review-row input { min-width: 0; border: 1px solid var(--line); border-radius: 9px; padding: 8px 7px; background: #fff; font-size: 11px; }
     .review-remove { width: 26px; height: 26px; border-radius: 8px; background: #fff1e6; color: #a96644; font-weight: 900; }
     .receipt-note { padding: 11px 12px; border-radius: 13px; background: #fff8e9; color: #8a6b3e; font-size: 11px; line-height: 1.55; }
+    .label-report { display: grid; gap: 10px; }
+    .label-block { background: #fff; border: 1px solid rgba(65,53,44,.07); border-radius: 17px; padding: 13px; }
+    .label-block h3 { font-size: 14px; margin-bottom: 9px; }
+    .label-ingredient-list { display: flex; gap: 6px; flex-wrap: wrap; }
+    .label-ingredient { padding: 6px 8px; border-radius: 9px; background: var(--paper-2); color: #665b53; font-size: 11px; }
+    .label-ingredient.emphasis { background: #fff1e6; color: #a45832; font-weight: 800; }
+    .label-nutrition { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .nutrition-cell { background: var(--paper-2); border-radius: 10px; padding: 8px; font-size: 11px; }
+    .nutrition-cell b { display: block; font-size: 13px; }
+    .nutrition-cell span { color: var(--muted); font-size: 10px; }
+    .label-alert { padding: 10px; border-radius: 12px; background: #fff3e8; color: #8a5a39; font-size: 11px; line-height: 1.5; }
+    .label-alert strong { display: block; margin-bottom: 3px; }
+    .label-standard { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+    .label-standard:last-child { border-bottom: 0; }
+    .label-standard a { color: var(--tomato-dark); font-weight: 800; text-decoration: none; }
     @media (min-width: 700px) {
       body { background: #e9e1d6; padding: 24px; }
       .app-shell { border-radius: 30px; min-height: calc(100vh - 48px); box-shadow: 0 18px 80px rgba(69,48,33,.16); }
@@ -308,6 +323,11 @@
         <div class="trend-list" id="trend-list"><div class="empty">买过 3 次后会显示个人价格建议。</div></div>
       </section>
 
+      <section class="screen" id="screen-labels" data-screen-label="配料表">
+        <div class="page-title"><div><div class="eyebrow">INGREDIENT LABEL NOTES</div><h1>配料表</h1><p>拍下包装上的配料和营养成分，先看懂，再决定。</p></div><button class="primary-button" id="label-scan-button">＋ 扫配料表</button></div>
+        <div class="label-report" id="label-list"><div class="empty">还没有配料表记录。拍一张包装背面的配料表开始。</div></div>
+      </section>
+
       <section class="screen" id="screen-profile" data-screen-label="我的">
         <div class="page-title"><div><div class="eyebrow">YOUR KITCHEN NOTES</div><h1>我的</h1><p>让每一次尝试，都留下点什么。</p></div></div>
         <div class="profile-card"><div class="profile-head"><div class="avatar">林</div><div><h2>林同学的厨房</h2><p>从 2026 年 7 月开始记录</p></div></div><div class="stat-row"><div class="stat"><b id="stat-done">3</b><span>已做成</span></div><div class="stat"><b id="stat-saved">12</b><span>收藏菜谱</span></div><div class="stat"><b>82%</b><span>本周匹配</span></div></div><div class="preference-row"><strong>饮食目标</strong><span>轻盈一点，但不委屈自己</span></div><div class="preference-row"><strong>常用厨具</strong><span>平底锅 · 空气炸锅 · 电饭煲</span></div><div class="preference-row"><strong>不吃的食材</strong><span>香菜 · 芹菜</span></div></div>
@@ -318,7 +338,7 @@
       </section>
     </div>
 
-    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" data-nav="home"><span class="nav-icon">⌂</span><span>今天</span></button><button class="nav-item" data-nav="recipes"><span class="nav-icon">▤</span><span>菜谱</span></button><button class="nav-item" data-nav="pantry"><span class="nav-icon">◌</span><span>食材</span></button><button class="nav-item" data-nav="shopping"><span class="nav-icon">▣</span><span>买菜</span></button><button class="nav-item" data-nav="profile"><span class="nav-icon">◎</span><span>我的</span></button></nav>
+    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" data-nav="home"><span class="nav-icon">⌂</span><span>今天</span></button><button class="nav-item" data-nav="recipes"><span class="nav-icon">▤</span><span>菜谱</span></button><button class="nav-item" data-nav="pantry"><span class="nav-icon">◌</span><span>食材</span></button><button class="nav-item" data-nav="shopping"><span class="nav-icon">▣</span><span>买菜</span></button><button class="nav-item" data-nav="labels"><span class="nav-icon">▥</span><span>配料表</span></button><button class="nav-item" data-nav="profile"><span class="nav-icon">◎</span><span>我的</span></button></nav>
   </main>
 
   <div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-content"></div></div>
@@ -542,9 +562,49 @@
       $('#receipt-manual').onclick=()=>openReceiptReview({provider:false,purchasedAt:new Date().toISOString().slice(0,10),items:[]});
       $('#receipt-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张小票'); const button=$('#receipt-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',file); try { const result=await receiptApi('/api/receipts/scan',{method:'POST',body:form}); closeModal(); openReceiptReview({...result.receipt,provider:result.provider}); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
     }
+    const labelState = {labels:[], loaded:false};
+    function labelReportHtml(label) {
+      const report = label.report || label;
+      const ingredients = report.ingredients || [];
+      const nutritionEntries = Object.entries(report.nutrition || {});
+      const nutritionNames = {energy:'能量', protein:'蛋白质', fat:'脂肪', saturatedFat:'饱和脂肪', carbohydrate:'碳水化合物', sugar:'糖', sodium:'钠', fiber:'膳食纤维'};
+      const alerts = [...(report.flags || [])];
+      if (report.allergens?.length) alerts.unshift({title:'过敏原提示', detail:`识别到：${report.allergens.join('、')}。请以包装上的过敏原信息和自身情况为准。`});
+      return `<article class="label-block"><div class="receipt-card-head"><div><h3>${receiptHtml(label.productName || report.productName || '未命名食品')}</h3><small>${label.scannedAt ? new Date(label.scannedAt).toLocaleString('zh-CN') : '刚刚识别'}${label.ocrConfidence ? ` · 识别置信度 ${label.ocrConfidence}%` : ''}</small></div><span class="mini-tag">${report.confidence ? '待人工确认' : '需补充文字'}</span></div><p class="helper" style="margin:8px 0 0">${receiptHtml(report.summary || '请检查识别结果')}</p></article>
+        <article class="label-block"><h3>配料顺序</h3>${ingredients.length ? `<div class="label-ingredient-list">${ingredients.map(item=>`<span class="label-ingredient ${item.emphasis ? 'emphasis' : ''}">${receiptHtml(item.name)}</span>`).join('')}</div><small class="helper">前面的配料通常代表相对用量更高；这不是单独的营养或安全结论。</small>` : '<div class="empty">未识别到配料，请在校对时补充。</div>'}</article>
+        <article class="label-block"><h3>营养成分</h3>${nutritionEntries.length ? `<div class="label-nutrition">${nutritionEntries.map(([key,item])=>`<div class="nutrition-cell"><b>${receiptHtml(item.value)} ${receiptHtml(item.unit || '')}</b><span>${nutritionNames[key] || key} · ${item.basis === 'per_serving_or_label' ? '按标签/每份' : '按每 100g/100ml'}</span></div>`).join('')}</div>` : '<div class="empty">未识别到营养数值，请拍清“营养成分表”。</div>'}</article>
+        ${alerts.length ? `<article class="label-block"><h3>需要留意</h3>${alerts.map(alert=>`<div class="label-alert"><strong>${receiptHtml(alert.title || '提示')}</strong>${receiptHtml(alert.detail || '')}</div>`).join('')}</article>` : ''}
+        <article class="label-block"><h3>标准与依据</h3>${report.standards?.length ? report.standards.map(standard=>`<div class="label-standard"><div><strong>${receiptHtml(standard.code)}</strong><small>${receiptHtml(standard.title)}<br/>${receiptHtml(standard.status)}</small></div><a href="${receiptHtml(standard.url)}" target="_blank" rel="noreferrer">查看来源 ↗</a></div>`).join('') : '<div class="empty">未识别到执行标准号，可手动查看包装上的标准编号。</div>'}</article>
+        <article class="receipt-note">${receiptHtml(report.disclaimer || '本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。')}</article>`;
+    }
+    function renderLabelData() {
+      const root = $('#label-list'); if (!root) return;
+      root.innerHTML = labelState.labels.length ? labelState.labels.map(label=>`<div class="label-report">${labelReportHtml(label)}</div>`).join('') : '<div class="empty">还没有配料表记录。拍一张包装背面的配料表开始。</div>';
+    }
+    async function loadLabelData() {
+      try { const result = await receiptApi('/api/labels?limit=20'); labelState.labels = result.labels || []; labelState.loaded = true; renderLabelData(); }
+      catch (error) { $('#label-list').innerHTML = `<div class="receipt-note">配料表服务暂不可用：${receiptHtml(error.message)}<br/>你仍可以先拍照保存，稍后重试。</div>`; }
+    }
+    function labelReviewHtml(result) {
+      const report = result.report || {};
+      return `<div class="modal-handle"></div><div class="modal-head"><h2>校对配料表</h2><button class="close-button" data-close>×</button></div><div class="receipt-note">${result.provider ? 'OCR 已提取文字，请检查配料顺序、营养数值和标准号。' : 'OCR 未提取到足够文字，可以直接粘贴或手动输入包装内容。'} 保存前仍可编辑原始文字，分析结果会随文字更新。</div><div class="field"><label>产品名称</label><input id="label-product-name" value="${receiptHtml(report.productName || '')}" placeholder="例如：全麦吐司" /></div><div class="field"><label>识别文字（可编辑）</label><textarea id="label-raw-text" rows="7" placeholder="配料表：…\n营养成分表：…\n执行标准：…">${receiptHtml(report.rawText || '')}</textarea></div><div id="label-review-report">${labelReportHtml({productName:report.productName, scannedAt:new Date().toISOString(), report})}</div><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="label-confirm">保存这份分析</button></div>`;
+    }
+    function openLabelReview(result) {
+      openModal(labelReviewHtml(result));
+      const refresh = () => { const report = result.report || {}; const parsed = report.rawText === $('#label-raw-text').value ? report : null; if (parsed) return; $('#label-review-report').innerHTML = labelReportHtml({productName:$('#label-product-name').value.trim() || report.productName, scannedAt:new Date().toISOString(), report:report}); };
+      $('#label-raw-text').oninput = () => { clearTimeout(refresh.timer); refresh.timer = setTimeout(async()=>{ try { const text = $('#label-raw-text').value; const response = await receiptApi('/api/labels/scan-text',{method:'POST',body:JSON.stringify({rawText:text})}); $('#label-review-report').innerHTML = labelReportHtml({productName:$('#label-product-name').value.trim() || response.report.productName, scannedAt:new Date().toISOString(), report:response.report}); } catch {} }, 280); };
+      $('#label-confirm').onclick = async () => { const button=$('#label-confirm'); button.disabled=true; button.textContent='保存中…'; try { const rawText=$('#label-raw-text').value.trim(); const response=await receiptApi('/api/labels/confirm',{method:'POST',body:JSON.stringify({productName:$('#label-product-name').value.trim(),rawText,report:undefined})}); closeModal(); labelState.loaded=false; await loadLabelData(); showScreen('labels'); toast('配料表分析已保存'); } catch(error) { toast(error.message); button.disabled=false; button.textContent='保存这份分析'; } };
+    }
+    function openLabelScanModal() {
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>扫描配料表</h2><button class="close-button" data-close>×</button></div><p class="helper" style="margin-top:-5px">请拍清包装背面的“配料表”“营养成分表”和“执行标准”。原图只用于本次识别，不会长期保存。</p><div class="field"><label class="photo-drop" for="label-image"><strong>＋</strong>拍照或选择配料表图片<input id="label-image" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden /></label><img class="photo-preview" id="label-image-preview" alt="配料表预览" /></div><div class="modal-actions"><button class="secondary-button" id="label-manual">手动输入</button><button class="primary-button" id="label-scan-submit">开始识别</button></div>`);
+      let file=null; $('#label-image').onchange=event=>{ file=event.target.files?.[0] || null; const preview=$('#label-image-preview'); if(file){ preview.src=URL.createObjectURL(file); preview.style.display='block'; } };
+      $('#label-manual').onclick=()=>{ closeModal(); openLabelReview({provider:false,report:{rawText:'',productName:'',ingredients:[],nutrition:{},standards:[],allergens:[],flags:[],confidence:0,summary:'请手动输入包装上的配料和营养信息。',disclaimer:'本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。'}}); };
+      $('#label-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张配料表图片'); const button=$('#label-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',file); try { const result=await receiptApi('/api/labels/scan',{method:'POST',body:form}); closeModal(); openLabelReview(result); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
+    }
     const baseShowScreenReceipts = showScreen;
-    showScreen = function(name) { baseShowScreenReceipts(name); if(name==='shopping' && !receiptState.loaded) loadReceiptData(); };
+    showScreen = function(name) { baseShowScreenReceipts(name); if(name==='shopping' && !receiptState.loaded) loadReceiptData(); if(name==='labels' && !labelState.loaded) loadLabelData(); };
     $('#receipt-scan-button').onclick=openReceiptScanModal; $('#pantry-receipt-scan').onclick=openReceiptScanModal; $('#receipt-refresh').onclick=loadReceiptData;
+    $('#label-scan-button').onclick=openLabelScanModal;
     $$('.nav-item, [data-nav]').forEach(el=>el.onclick=()=>showScreen(el.dataset.nav));
     $$('[data-action="add"]').forEach(el=>el.onclick=openAddModal); $$('[data-action="pantry-add"]').forEach(el=>el.onclick=openPantryModal); $$('[data-action="cook"]').forEach(el=>el.onclick=()=>openCook('chicken')); $$('[data-action="clear-shopping"]').forEach(el=>el.onclick=()=>{ state.shoppingList=[]; persist(); renderShopping(); bindDishClicks(); toast('购物清单已清空'); }); $('#open-add').onclick=openAddModal; $('#feature-start').onclick=()=>openDetail('pasta');
     $('#recipe-search').oninput=(e)=>{state.search=e.target.value;renderRecipes();bindDishClicks();}; $$('.filter').forEach(el=>el.onclick=()=>{state.filter=el.dataset.filter;renderRecipes();bindDishClicks();});

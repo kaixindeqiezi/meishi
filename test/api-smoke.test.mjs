@@ -36,6 +36,14 @@ test('receipt API smoke flow', async () => {
     assert.equal(scan.status, 200);
     assert.equal(scanPayload.status, 'needs_manual_review');
 
+    const labelScan = await fetch(`${base}/api/labels/scan`, { method: 'POST', headers: { 'x-device-id': 'api-test-device' }, body: form });
+    assert.equal(labelScan.status, 200);
+    assert.equal((await labelScan.json()).status, 'needs_manual_review');
+    const labelConfirm = await fetch(`${base}/api/labels/confirm`, { method: 'POST', headers, body: JSON.stringify({ productName: '测试食品', rawText: '配料表：小麦粉、白砂糖\n执行标准：GB 7718-2025' }) });
+    assert.equal(labelConfirm.status, 201);
+    const labels = await fetch(`${base}/api/labels`, { headers: { 'x-device-id': 'api-test-device' } });
+    assert.equal((await labels.json()).labels.length, 1);
+
     const receipt = { storeName: '测试超市', purchaseDate: '2026-08-01', total: 12.5, items: [{ name: '西红柿', quantity: 1, unit: 'kg', lineTotal: 12.5, confidence: 90 }] };
     const confirm = await fetch(`${base}/api/receipts/confirm`, { method: 'POST', headers, body: JSON.stringify(receipt) });
     assert.equal(confirm.status, 201);
