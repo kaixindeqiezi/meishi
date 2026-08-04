@@ -32,10 +32,11 @@ https://你的域名/api/douyin/parse
 
 ```bash
 docker build -t foodflow-api -f server/Dockerfile .
-docker run --env-file .env -p 4320:4320 foodflow-api
+docker run --env-file .env -p ${FOODFLOW_HOST_PORT:-4320}:4320 foodflow-api
 ```
 
-Dockerfile 使用仓库根目录作为构建上下文。使用 Compose 时，从 `deploy` 目录执行 `docker compose up -d --build` 即可；Compose 已配置正确的 `context: ..`。
+Dockerfile 使用仓库根目录作为构建上下文。使用 Compose 时，从 `deploy` 目录执行 `docker compose --env-file ../.env up -d --build`；Compose 已配置正确的 `context: ..`。
+如果本机的 4320 端口被系统保留，可在 `.env` 中设置 `FOODFLOW_HOST_PORT=45555`；容器内 API 仍监听 4320。
 
 Skill 的配置只保存主机、用户、端口、仓库、分支和远程目录，不保存 SSH 私钥或 API Key。第一次使用时需要提供这些非敏感信息，之后可直接说“部署到 VPS”。
 
