@@ -163,6 +163,12 @@ async function scanReceipt(req, res) {
   if (!Object.keys(providerDraft).length) Object.assign(draftInput, { storeName: '', purchaseDate: fields.purchaseDate || today(), items: [], confidence: 0 });
   if (!draftInput.purchasedAt && !draftInput.purchaseDate) draftInput.purchaseDate = fields.purchaseDate || today();
   const draft = normalizeDraft(draftInput, db);
+  const parsedDate = draft.purchasedAt.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (parsedDate) {
+    const now = new Date(); const currentYear = now.getFullYear(); const candidate = new Date(`${currentYear}-${parsedDate[2]}-${parsedDate[3]}T00:00:00Z`); const todayDate = new Date(`${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T00:00:00Z`);
+    const nearToday = Math.abs(candidate.getTime() - todayDate.getTime()) <= 14 * 24 * 60 * 60 * 1000;
+    if (Number(parsedDate[1]) < currentYear - 1 && nearToday) { draft.dateWarning = `OCR 识别日期为 ${draft.purchasedAt}，但月日接近今天，可能应为 ${currentYear}-${parsedDate[2]}-${parsedDate[3]}；请确认后再保存。`; draft.purchasedAt = `${currentYear}-${parsedDate[2]}-${parsedDate[3]}`; }
+  }
   draft.imageAccepted = true;
   draft.deviceId = deviceId;
   const recognized = Boolean(providerResult?.rawText || providerResult?.text || providerResult?.items?.length || providerResult?.receipt?.items?.length);
