@@ -60,20 +60,25 @@ export function parseReceiptText(rawText) {
   }
   const pairedItems = [];
   const seenPairs = new Set();
-  const nameLine = line => !RECEIPT_NOISE.test(line) && !/[\d]/.test(line) && /[\u4e00-\u9fff]/.test(line) && line.length <= 24;
+  const nameLine = line => !RECEIPT_NOISE.test(line) && !/[\d]/.test(line) && /[\u4e00-\u9fff]/.test(line) && line.length <= 32;
   for (let index = 0; index < lines.length; index += 1) {
     const numericLine = lines[index];
     const values = [...numericLine.matchAll(/(\d{1,6}(?:[.,]\d{1,2}))/g)].map(match => match[1].replace(',', '.'));
     if (!values.length) continue;
-    for (const neighbor of [lines[index - 1], lines[index + 1]]) {
+    const multiply = numericLine.match(/(\d+(?:[.,]\d+)?)\s*[*x×]\s*(\d+(?:[.,]\d+)?)[^\d]+(\d+(?:[.,]\d+)?)/i);
+    const quantityValue = multiply ? Number(multiply[1].replace(',', '.')) : values.length > 1 ? Number(values.at(-2)) : null;
+    const unitPrice = multiply ? multiply[2].replace(',', '.') : null;
+    const lineTotal = multiply ? multiply[3].replace(',', '.') : values.at(-1);
+    for (const offset of [-2]) {
+      const neighbor = lines[index + offset];
+      const bridge = lines[index - 1] || '';
+      if (offset === -2 && !/^[\d\s-]{6,}$/.test(bridge)) continue;
       if (!neighbor || !nameLine(neighbor)) continue;
-      const lineTotal = values.at(-1);
-      const quantityValue = values.length > 1 ? Number(values.at(-2)) : null;
       if (quantityValue !== null && quantityValue > 1000) continue;
       const key = `${neighbor}|${lineTotal}`;
       if (seenPairs.has(key)) continue;
       seenPairs.add(key);
-      pairedItems.push({ name: neighbor, quantity: quantityValue !== null && Number.isFinite(quantityValue) ? String(quantityValue) : null, unit: null, lineTotal, confidence: 55 });
+      pairedItems.push({ name: neighbor, quantity: quantityValue !== null && Number.isFinite(quantityValue) ? String(quantityValue) : null, unit: null, unitPrice, lineTotal, confidence: multiply ? 72 : 55 });
     }
   }
   const finalItems = pairedItems.length ? pairedItems : items;

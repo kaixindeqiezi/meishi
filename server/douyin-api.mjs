@@ -17,6 +17,10 @@ const providerToken = process.env.DOUYIN_PROVIDER_TOKEN || '';
 const receiptOcrUrl = process.env.RECEIPT_OCR_PROVIDER_URL || '';
 const receiptOcrToken = process.env.RECEIPT_OCR_PROVIDER_TOKEN || '';
 const localOcrUrl = process.env.FOODFLOW_LOCAL_OCR_URL || '';
+const tencentSecretId = process.env.TENCENT_SECRET_ID || '';
+const tencentSecretKey = process.env.TENCENT_SECRET_KEY || '';
+const tencentOcrRegion = process.env.TENCENT_OCR_REGION || 'ap-guangzhou';
+const tencentOcrConfigured = Boolean(tencentSecretId && tencentSecretKey);
 const execFileAsync = promisify(execFile);
 const localOcrAvailable = (() => { try { execFileSync('tesseract', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const db = createDatabase();
@@ -48,6 +52,27 @@ async function callProvider(payload, url = providerUrl, token = providerToken) {
     if (!response.ok) throw new Error(`provider returned ${response.status}`);
     return await response.json();
   } finally { clearTimeout(timeout); }
+}
+
+function sha256(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
+function hmac(key, value, encoding = undefined) { return crypto.createHmac('sha256', key).update(value).digest(encoding); }
+
+async function callTencentOcr(buffer, mimeType = 'image/jpeg') {
+  const service = 'ocr'; const host = 'ocr.tencentcloudapi.com'; const action = 'GeneralAccurateOCR'; const version = '2018-11-19';
+  const payload = JSON.stringify({ ImageBase64: buffer.toString('base64'), LanguageType: 'zh', IsWords: false, EnableDetectSplit: true, ConfigID: 'OCR' });
+  const timestamp = Math.floor(Date.now() / 1000); const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+  const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${host}\n`;
+  const signedHeaders = 'content-type;host'; const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${sha256(payload)}`;
+  const credentialScope = `${date}/${service}/tc3_request`; const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${credentialScope}\n${sha256(canonicalRequest)}`;
+  const secretDate = hmac(`TC3${tencentSecretKey}`, date); const secretService = hmac(secretDate, service); const secretSigning = hmac(secretService, 'tc3_request');
+  const signature = hmac(secretSigning, stringToSign, 'hex');
+  const authorization = `TC3-HMAC-SHA256 Credential=${tencentSecretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  const response = await fetch(`https://${host}/`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', Host: host, Authorization: authorization, 'X-TC-Action': action, 'X-TC-Version': version, 'X-TC-Region': tencentOcrRegion, 'X-TC-Timestamp': String(timestamp) }, body: payload, signal: AbortSignal.timeout(30000) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.Response?.Error) throw new Error(result.Response?.Error?.Message || `Tencent OCR HTTP ${response.status}`);
+  const detections = result.Response?.TextDetections || []; const rawText = detections.map(item => item.DetectedText).filter(Boolean).join('\n');
+  const parsed = parseReceiptText(rawText); const confidence = detections.length ? Math.round(detections.reduce((sum, item) => sum + Number(item.Confidence || 0), 0) / detections.length) : 0;
+  return { ...parsed, rawText, confidence, ocrConfidence: confidence, providerResponse: result.Response };
 }
 
 async function runLocalReceiptOcr(buffer, mimeType = 'image/jpeg') {
@@ -125,7 +150,8 @@ async function scanReceipt(req, res) {
   if (!file?.buffer?.length) return sendJson(res, 400, { ok: false, error: 'image_required', message: '请上传小票图片' });
   let providerResult = null; let providerName = '';
   try {
-    if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
+    if (tencentOcrConfigured) { providerResult = await callTencentOcr(file.buffer, file.mimeType); providerName = 'tencent-cloud'; }
+    else if (receiptOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
     else if (localOcrUrl) { providerResult = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { providerResult = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
   } catch (error) { console.error(`receipt OCR failed: ${error?.name || 'Error'} ${error?.message || ''}`); providerResult = null; providerName = ''; }
@@ -147,7 +173,8 @@ async function scanLabel(req, res) {
   if (!file?.buffer?.length) return sendJson(res, 400, { ok: false, error: 'image_required', message: '请上传配料表图片' });
   let ocr = null; let providerName = '';
   try {
-    if (receiptOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
+    if (tencentOcrConfigured) { ocr = await callTencentOcr(file.buffer, file.mimeType); providerName = 'tencent-cloud'; }
+    else if (receiptOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, receiptOcrUrl, receiptOcrToken); providerName = 'cloud'; }
     else if (localOcrUrl) { ocr = await callProvider({ imageBase64: file.buffer.toString('base64'), mimeType: file.mimeType, locale: 'zh-CN', task: 'food-label' }, localOcrUrl, ''); providerName = 'host-tesseract'; }
     else if (localOcrAvailable) { ocr = await runLocalReceiptOcr(file.buffer, file.mimeType); providerName = 'local-tesseract'; }
   } catch (error) { console.error(`label OCR failed: ${error?.name || 'Error'} ${error?.message || ''}`); ocr = null; providerName = ''; }
@@ -172,7 +199,7 @@ function confirmLabel(input, deviceId) {
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), receiptOcrConfigured: Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
+  if (req.method === 'GET' && url.pathname === '/health') return sendJson(res, 200, { ok: true, providerConfigured: Boolean(providerUrl), tencentOcrConfigured, receiptOcrConfigured: tencentOcrConfigured || Boolean(receiptOcrUrl) || Boolean(localOcrUrl) || localOcrAvailable, localOcrConfigured: Boolean(localOcrUrl), localOcrAvailable, dbConfigured: true });
   if (req.method === 'POST' && url.pathname === '/api/receipts/scan') return scanReceipt(req, res);
   if (req.method === 'POST' && url.pathname === '/api/labels/scan') return scanLabel(req, res);
   if (req.method === 'POST' && url.pathname === '/api/labels/scan-text') return scanLabelText(req, res);
