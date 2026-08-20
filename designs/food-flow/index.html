@@ -297,7 +297,7 @@
       </section>
 
       <section class="screen" id="screen-recipes" data-screen-label="菜谱库">
-        <div class="page-title"><div><div class="eyebrow">MY RECIPES</div><h1>菜谱库</h1><p>收藏不是终点，做成才是。</p></div><button class="primary-button" data-action="add">＋ 添加</button></div>
+        <div class="page-title"><div><div class="eyebrow">MY RECIPES</div><h1>菜谱库</h1><p>收藏不是终点，做成才是。</p></div><div style="display:flex;gap:7px;align-items:center"><button class="secondary-button" id="manual-recipe-button" type="button">手动录入</button><button class="primary-button" data-action="add">＋ 添加</button></div></div>
         <input class="search" id="recipe-search" placeholder="搜索菜名、食材或标签" />
         <div class="filter-row"><button class="filter active" data-filter="all">全部 12</button><button class="filter" data-filter="todo">待做 9</button><button class="filter" data-filter="done">做过 3</button><button class="filter" data-filter="light">适合减脂</button></div>
         <div class="dish-list" id="recipe-list"></div>
@@ -439,13 +439,26 @@
         const title = parsed.title || (parsed.note ? parsed.note.split(/[，,。；;\n]/)[0].slice(0, 18) : '抖音收藏菜谱');
         const ingredients = parsed.ingredientHints.length ? parsed.ingredientHints : [{name:'待从视频确认的主食材', amount:'待确认'}, {name:'待从视频确认的调味料', amount:'适量'}];
         state.dishes.unshift({ id, title: `${title}（待确认）`, desc: parsed.isDouyin ? '已从抖音链接建立草稿，确认后再开始做。' : '来自手动补充的抖音收藏，等待你补齐关键步骤。', thumb:'thumb-pasta', tags:['待确认','抖音草稿'], light:false, done:false, source: parsed.creator ? `抖音 · ${parsed.creator}` : '抖音 · 待确认来源', sourceUrl: parsed.url || parsed.raw, sourceCreator: parsed.creator, sourceSnapshot: parsed.screenshot, importConfidence: parsed.confidence, importMethod: parsed.isDouyin ? 'douyin-link' : 'manual-fallback', ingredients, steps:[{title:'先回看视频并补齐步骤', desc: parsed.note || '打开原视频，记录火候、时间和成品状态。', tip:'先确认食材和关键火候，再开始做菜。', time:120}], expected:'请根据视频封面或截图补充：颜色、摆盘、质地和酱汁状态。' });
-        persist(); closeModal(); renderAll(); showScreen('recipes'); toast(parsed.isDouyin ? '已识别抖音来源，草稿等你校对' : '已保存手动采集草稿，补齐后即可开做'); setTimeout(() => openEditDraftModal(id), 120);
+        persist(); closeModal(); renderAll(); showScreen('recipes'); toast(parsed.isDouyin ? '已识别抖音来源，草稿等你校对' : '已保存手动采集草稿，可从菜谱卡片继续编辑');
       };
     }
     function openModal(html) { $('#modal-content').innerHTML = html; $('#modal-backdrop').classList.add('open'); }
     function closeModal() { $('#modal-backdrop').classList.remove('open'); }
     function openAddModal() { openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>记一道想做的菜</h2><button class="close-button" data-close>×</button></div><div class="field"><label>抖音链接 / 分享口令</label><input id="new-link" placeholder="粘贴链接，或输入分享口令" autofocus /></div><div class="field"><label>也可以补充一句你记得的</label><textarea id="new-note" rows="3" placeholder="比如：博主说空气炸锅 180°C 12 分钟"></textarea></div><p class="helper">AI 会先生成一份可校对的菜谱草稿。没有办法读取的视频内容，也可以用截图或文字补充。</p><div class="modal-actions"><button class="secondary-button" data-close>先不记了</button><button class="primary-button" id="save-draft">生成菜谱草稿</button></div>`); $('#save-draft').onclick = () => { const link = $('#new-link').value.trim(); const note = $('#new-note').value.trim(); const id = `draft-${Date.now()}`; state.dishes.unshift({id,title: link ? '蒜香番茄虾仁（待确认）' : '我的新菜谱（待确认）',desc: note || 'AI 已生成草稿，确认食材和步骤后再开始做。',thumb:'thumb-pasta',tags:['待确认','AI 草稿'],light:false,done:false,source:link || '手动记录',ingredients:[{name:'虾仁',amount:'120g'},{name:'番茄',amount:'2 个'},{name:'蒜',amount:'3 瓣'}],steps:[{title:'确认菜谱信息',desc:'先根据原视频或截图，补齐食材用量和烹饪步骤。',tip:'确认完成后再开始做，避免漏掉关键调味。',time:120}],expected:'完成后补充你看到的成品样子。'}); persist(); closeModal(); renderAll(); showScreen('recipes'); toast('已生成草稿，确认后就可以开做'); }; }
     function openPantryModal() { openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>加进家里的食材</h2><button class="close-button" data-close>×</button></div><div class="field"><label>食材名称</label><input id="pantry-name" placeholder="例如：鸡胸肉" autofocus /></div><div class="field"><label>状态</label><select id="pantry-status"><option value="fresh">现在新鲜</option><option value="expiring">快过期，优先用掉</option></select></div><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="save-pantry">加入库存</button></div>`); $('#save-pantry').onclick = () => { const name = $('#pantry-name').value.trim(); if (!name) return toast('先写下食材名称'); if (!state.pantry.some(i=>i.name===name)) { state.pantry.push({name,expiring:$('#pantry-status').value==='expiring'}); persist(); renderAll(); } closeModal(); toast(`已把 ${name} 放进库存`); }; }
+    function openManualRecipeModal() {
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>手动录入菜谱</h2><button class="close-button" data-close>×</button></div><p class="helper" style="margin-top:-5px">不经过抖音解析，直接填写一份可以马上使用的正式菜谱。</p><div class="field"><label>菜名</label><input id="manual-recipe-title" placeholder="例如：番茄滑蛋豆腐" autofocus /></div><div class="field"><label>这道菜的特点 / 做完是什么样</label><textarea id="manual-recipe-expected" rows="3" placeholder="例如：酸甜开胃，豆腐嫩，适合拌饭"></textarea></div><div class="field"><label>原材料（每行：名称 | 用量）</label><textarea id="manual-recipe-ingredients" rows="5" placeholder="番茄 | 2 个&#10;嫩豆腐 | 1 盒&#10;鸡蛋 | 2 个"></textarea></div><div class="field"><label>做法步骤（每行：标题 | 做法 | 判断标准 | 秒数）</label><textarea id="manual-recipe-steps" rows="7" placeholder="番茄切块 | 切成一口大小 | 保留汁水 | 120&#10;炒出番茄汁 | 中火炒至出汁 | 汤汁红亮 | 300"></textarea></div><div class="modal-actions"><button type="button" class="secondary-button" data-close>取消</button><button type="button" class="primary-button" id="save-manual-recipe">保存菜谱</button></div>`);
+      $('#save-manual-recipe').onclick = () => {
+        const title = $('#manual-recipe-title').value.trim();
+        const ingredients = $('#manual-recipe-ingredients').value.split('\n').map(line => line.trim()).filter(Boolean).map(line => { const [name, amount='适量'] = line.split('|').map(value => value.trim()); return {name, amount}; }).filter(item => item.name);
+        const steps = $('#manual-recipe-steps').value.split('\n').map(line => line.trim()).filter(Boolean).map(line => { const [stepTitle, desc='', tip='注意状态变化', time='120'] = line.split('|').map(value => value.trim()); return {title:stepTitle, desc, tip, time:Number(time) || 120}; }).filter(step => step.title);
+        if (!title || !ingredients.length || !steps.length) return toast('请填写菜名、至少一道原材料和一个步骤');
+        const id = `manual-${Date.now()}`;
+        const expected = $('#manual-recipe-expected').value.trim() || '完成后补充成品状态。';
+        state.dishes.unshift({id, title, desc:expected, thumb:'thumb-pasta', tags:['待做','手动录入'], light:false, done:false, source:'手动录入', ingredients, steps, expected});
+        persist(); closeModal(); renderAll(); showScreen('recipes'); toast('菜谱已保存，可以开始做了');
+      };
+    }
     function openEditDraftModal(id) {
       const dish = state.dishes.find(d=>d.id===id); if (!dish) return;
       const safeText = value => receiptHtml(String(value ?? ''));
@@ -692,6 +705,7 @@
     showScreen = function(name) { baseShowScreenReceipts(name); if(name==='shopping' && !receiptState.loaded) loadReceiptData(); if(name==='labels' && !labelState.loaded) loadLabelData(); };
     $('#receipt-scan-button').onclick=openReceiptScanModal; $('#pantry-receipt-scan').onclick=openReceiptScanModal; $('#receipt-refresh').onclick=loadReceiptData;
     $('#label-scan-button').onclick=openLabelScanModal;
+    $('#manual-recipe-button').onclick=openManualRecipeModal;
     $$('.nav-item, [data-nav]').forEach(el=>el.onclick=()=>showScreen(el.dataset.nav));
     $$('[data-action="add"]').forEach(el=>el.onclick=openAddModal); $$('[data-action="pantry-add"]').forEach(el=>el.onclick=openPantryModal); $$('[data-action="cook"]').forEach(el=>el.onclick=()=>openCook('chicken')); $$('[data-action="clear-shopping"]').forEach(el=>el.onclick=()=>{ state.shoppingList=[]; persist(); renderShopping(); bindDishClicks(); toast('购物清单已清空'); }); $('#open-add').onclick=openAddModal; $('#feature-start').onclick=()=>openDetail('pasta');
     $('#recipe-search').oninput=(e)=>{state.search=e.target.value;renderRecipes();bindDishClicks();}; $$('.filter').forEach(el=>el.onclick=()=>{state.filter=el.dataset.filter;renderRecipes();bindDishClicks();});
