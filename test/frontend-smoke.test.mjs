@@ -14,6 +14,8 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /id="label-gallery"/);
   assert.match(html, /id="manual-recipe-button"/);
   assert.match(html, /id="save-manual-recipe"/);
+  assert.match(html, /data-action="delete-dish"/);
+  assert.match(html, /state\.dishes = state\.dishes\.filter/);
   assert.match(html, /const safeText = value => receiptHtml\(String\(value \?\? ''\)\)/);
   assert.match(html, /button type="button" class="primary-button" id="save-draft-edit"/);
 });
