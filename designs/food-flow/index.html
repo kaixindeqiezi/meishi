@@ -665,11 +665,19 @@
     const receiptHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const receiptMoney = cents => cents == null ? '—' : `¥${(Number(cents) / 100).toFixed(2)}`;
     async function receiptApi(path, options={}) {
-      const headers = {'x-device-id':receiptDeviceId, ...(options.body instanceof FormData ? {} : {'content-type':'application/json'}), ...(options.headers || {})};
-      const response = await fetch(`${receiptApiBase}${path}`, {...options, headers});
-      const payload = await response.json().catch(()=>({}));
-      if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
-      return payload;
+      const {timeoutMs = options.body instanceof FormData ? 60000 : 15000, ...fetchOptions} = options;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const headers = {'x-device-id':receiptDeviceId, ...(fetchOptions.body instanceof FormData ? {} : {'content-type':'application/json'}), ...(fetchOptions.headers || {})};
+      try {
+        const response = await fetch(`${receiptApiBase}${path}`, {...fetchOptions, headers, signal:controller.signal});
+        const payload = await response.json().catch(()=>({}));
+        if (!response.ok) throw new Error(payload.message || (response.status === 413 ? '图片太大，请压缩后重试' : `HTTP ${response.status}`));
+        return payload;
+      } catch (error) {
+        if (error?.name === 'AbortError') throw new Error('识别请求超时，请检查网络或改用较小的图片重试');
+        throw error;
+      } finally { clearTimeout(timeout); }
     }
     function renderReceiptData() {
       const receipts = receiptState.receipts, lots = receiptState.lots, trends = receiptState.trends;
@@ -696,14 +704,16 @@
     }
     async function prepareScanFile(file) {
       if (!file || file.size < 1500000 || typeof createImageBitmap !== 'function') return file;
+      let decodeTimer;
       try {
-        const bitmap = await createImageBitmap(file); const maxSide = 1800; const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+        const bitmap = await Promise.race([createImageBitmap(file), new Promise((_, reject) => { decodeTimer = setTimeout(() => reject(new Error('image_decode_timeout')), 8000); })]);
+        clearTimeout(decodeTimer); const maxSide = 1800; const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
         if (scale >= 1) { bitmap.close(); return file; }
         const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
         canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .82));
+        const blob = await Promise.race([new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .82)), new Promise(resolve => setTimeout(() => resolve(null), 8000))]);
         return blob ? new File([blob], 'foodflow-scan.jpg', {type:'image/jpeg'}) : file;
-      } catch { return file; }
+      } catch { return file; } finally { clearTimeout(decodeTimer); }
     }
     function receiptReviewHtml(draft) {
       const items = draft.items || [];
@@ -724,6 +734,21 @@
       $('#receipt-manual').onclick=()=>openReceiptReview({provider:false,purchasedAt:new Date().toISOString().slice(0,10),items:[]});
       $('#receipt-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张小票'); const button=$('#receipt-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',await prepareScanFile(file)); try { const result=await receiptApi('/api/receipts/scan',{method:'POST',body:form}); closeModal(); openReceiptReview({...result.receipt,provider:result.provider}); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
     }
+    document.addEventListener('click', async event => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || target.id !== 'receipt-scan-submit') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const button = target; const file = $('#receipt-camera')?.files?.[0] || $('#receipt-gallery')?.files?.[0];
+      if (!file) return toast('先选择或拍摄一张小票');
+      if (file.size > 11.5 * 1024 * 1024) return toast('图片超过 11.5MB，请先压缩后重试');
+      button.disabled = true; button.textContent = '准备图片…';
+      try {
+        const form = new FormData(); form.append('image', await prepareScanFile(file));
+        button.textContent = '识别中…';
+        const result = await receiptApi('/api/receipts/scan', {method:'POST', body:form, timeoutMs:60000});
+        closeModal(); openReceiptReview({...result.receipt, provider:result.provider});
+      } catch (error) { toast(error.message || '小票识别失败，请重试'); button.disabled = false; button.textContent = '开始识别'; }
+    }, true);
     const labelState = {labels:[], loaded:false};
     function labelReportHtml(label) {
       const report = label.report || label;

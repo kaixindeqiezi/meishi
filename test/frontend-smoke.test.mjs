@@ -11,6 +11,9 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /id="screen-shopping"/);
   assert.match(html, /id="receipt-scan-button"/);
   assert.match(html, /id="receipt-gallery"/);
+  assert.match(html, /AbortController/);
+  assert.match(html, /图片太大，请压缩后重试/);
+  assert.match(html, /准备图片/);
   assert.match(html, /id="label-gallery"/);
   assert.match(html, /id="manual-recipe-button"/);
   assert.match(html, /open-manual-from-add/);
