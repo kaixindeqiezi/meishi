@@ -763,6 +763,19 @@
       $('#label-manual').onclick=()=>{ closeModal(); openLabelReview({provider:false,report:{rawText:'',productName:'',ingredients:[],nutrition:{},standards:[],allergens:[],flags:[],confidence:0,summary:'请手动输入包装上的配料和营养信息。',disclaimer:'本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。'}}); };
       $('#label-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张配料表图片'); const button=$('#label-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',await prepareScanFile(file)); try { const result=await receiptApi('/api/labels/scan',{method:'POST',body:form}); closeModal(); openLabelReview(result); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
     }
+    const baseOpenAddModal = openAddModal;
+    openAddModal = function() {
+      baseOpenAddModal();
+      const actions = $('#modal-content .modal-actions');
+      if (!actions || $('#open-manual-from-add')) return;
+      const manualButton = document.createElement('button');
+      manualButton.type = 'button';
+      manualButton.className = 'secondary-button';
+      manualButton.id = 'open-manual-from-add';
+      manualButton.textContent = '手动录入';
+      manualButton.onclick = () => { closeModal(); openManualRecipeModal(); };
+      actions.insertBefore(manualButton, actions.firstChild);
+    };
     const baseShowScreenReceipts = showScreen;
     showScreen = function(name) { baseShowScreenReceipts(name); if((name==='shopping' || name==='pantry') && !receiptState.loaded) loadReceiptData(); if(name==='labels' && !labelState.loaded) loadLabelData(); };
     $('#receipt-scan-button').onclick=openReceiptScanModal; $('#pantry-receipt-scan').onclick=openReceiptScanModal; $('#receipt-refresh').onclick=loadReceiptData;

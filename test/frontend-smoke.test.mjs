@@ -13,6 +13,8 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /id="receipt-gallery"/);
   assert.match(html, /id="label-gallery"/);
   assert.match(html, /id="manual-recipe-button"/);
+  assert.match(html, /open-manual-from-add/);
+  assert.match(html, /baseOpenAddModal/);
   assert.match(html, /id="save-manual-recipe"/);
   assert.match(html, /data-action="delete-dish"/);
   assert.match(html, /state\.dishes = state\.dishes\.filter/);
