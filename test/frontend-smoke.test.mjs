@@ -22,6 +22,8 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /button type="button" class="primary-button" id="save-draft-edit"/);
   assert.match(html, /id="manual-ingredient-list"/);
   assert.match(html, /data-ingredient-select/);
+  assert.match(html, /data-ingredient-category/);
+  assert.match(html, /请选择具体食材/);
   assert.match(html, /syncReceiptLotsToPantry/);
   assert.match(html, /ingredientStatusClass/);
   assert.match(html, /INGREDIENT_CATEGORY_ORDER/);

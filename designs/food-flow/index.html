@@ -168,7 +168,7 @@
     .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line); border-radius: 13px; padding: 12px; background: #fff; color: var(--ink); outline: none; resize: vertical; }
     .field input:focus, .field textarea:focus, .field select:focus { border-color: #d69785; box-shadow: 0 0 0 3px rgba(216,91,69,.1); }
     .recipe-ingredient-list { display: grid; gap: 8px; }
-    .recipe-ingredient-row { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(88px,.85fr) auto auto; gap: 6px; align-items: center; padding: 7px; border-radius: 13px; background: #fff; border: 1px solid var(--line); }
+    .recipe-ingredient-row { display: grid; grid-template-columns: minmax(112px,.8fr) minmax(0,1.15fr) minmax(88px,.85fr) auto auto; gap: 6px; align-items: center; padding: 7px; border-radius: 13px; background: #fff; border: 1px solid var(--line); }
     .recipe-ingredient-row select, .recipe-ingredient-row input { min-width: 0; border: 0; border-radius: 9px; padding: 9px; background: var(--paper-2); color: var(--ink); outline: none; }
     .recipe-ingredient-row select:focus, .recipe-ingredient-row input:focus { box-shadow: 0 0 0 2px rgba(216,91,69,.12); }
     .ingredient-stock { white-space: nowrap; padding: 4px 6px; border-radius: 999px; font-size: 10px; font-weight: 800; }
@@ -186,7 +186,7 @@
     .pantry-group h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; color: #6f6258; font-size: 12px; }
     .pantry-group h3 span { color: var(--muted); font-size: 10px; font-weight: 700; }
     .ingredient-cloud-group { display: flex; gap: 8px; flex-wrap: wrap; }
-    @media (max-width: 420px) { .recipe-ingredient-row { grid-template-columns: minmax(0,1fr) minmax(76px,.75fr) auto; } .recipe-ingredient-row .ingredient-stock { grid-column: 1 / 3; justify-self: start; } }
+    @media (max-width: 420px) { .recipe-ingredient-row { grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); } .recipe-ingredient-row input { grid-column: 1 / 2; } .recipe-ingredient-row .ingredient-stock { grid-column: 2 / 3; justify-self: start; } .recipe-ingredient-row .review-remove { grid-column: 1 / 3; justify-self: end; } }
     .modal-actions { display: flex; gap: 9px; margin-top: 18px; }
     .modal-actions > * { flex: 1; }
     .danger-button { color: #b64b3d; background: #fff5f1; border: 1px solid #edc0b6; }
@@ -763,6 +763,43 @@
       $('#label-manual').onclick=()=>{ closeModal(); openLabelReview({provider:false,report:{rawText:'',productName:'',ingredients:[],nutrition:{},standards:[],allergens:[],flags:[],confidence:0,summary:'请手动输入包装上的配料和营养信息。',disclaimer:'本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。'}}); };
       $('#label-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张配料表图片'); const button=$('#label-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',await prepareScanFile(file)); try { const result=await receiptApi('/api/labels/scan',{method:'POST',body:form}); closeModal(); openLabelReview(result); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
     }
+    ingredientRowHtml = function(item = {}) {
+      const name = ingredientName(item);
+      const amount = typeof item === 'string' ? '适量' : String(item?.amount || '适量');
+      const category = name ? ingredientCategory(name) : '';
+      const categoryOptions = `<option value="">请选择分类</option>${INGREDIENT_CATEGORY_OPTIONS.map(option => `<option value="${escapeRecipeValue(option)}" ${option === category ? 'selected' : ''}>${escapeRecipeValue(option)}</option>`).join('')}`;
+      const catalog = ingredientCatalogNames().filter(option => !category || ingredientCategory(option) === category);
+      const customOption = name && !catalog.includes(name) ? `<option value="${escapeRecipeValue(name)}" selected>${escapeRecipeValue(name)}</option>` : '';
+      const ingredientOptions = category ? `<option value="">请选择具体食材</option>${customOption}${catalog.map(option => `<option value="${escapeRecipeValue(option)}" ${option === name ? 'selected' : ''}>${escapeRecipeValue(option)}</option>`).join('')}<option value="__custom__">＋ 添加新食材</option>` : '<option value="">先选择分类</option>';
+      return `<div class="recipe-ingredient-row" data-ingredient-row><select data-ingredient-category aria-label="选择食材分类">${categoryOptions}</select><select data-ingredient-select aria-label="选择具体食材" ${category ? '' : 'disabled'}>${ingredientOptions}</select><input data-ingredient-amount value="${escapeRecipeValue(amount)}" placeholder="用量，例如 100g" /><span class="ingredient-stock ${ingredientStatusClass(name)}" data-ingredient-status>${ingredientStatus(name)}</span><button type="button" class="review-remove" data-remove-ingredient aria-label="删除食材">×</button></div>`;
+    };
+    bindIngredientEditor = function(rootSelector, addSelector) {
+      const root = $(rootSelector); if (!root) return;
+      const renderOptions = (select, category, selectedName = '') => {
+        const catalog = ingredientCatalogNames().filter(option => !category || ingredientCategory(option) === category);
+        select.innerHTML = category ? `<option value="">请选择具体食材</option>${catalog.map(option => `<option value="${escapeRecipeValue(option)}">${escapeRecipeValue(option)}</option>`).join('')}<option value="__custom__">＋ 添加新食材</option>` : '<option value="">先选择分类</option>';
+        select.disabled = !category;
+        if (selectedName && catalog.includes(selectedName)) select.value = selectedName;
+      };
+      const updateRow = row => { const select = $('[data-ingredient-select]', row); const status = $('[data-ingredient-status]', row); const name = select?.value === '__custom__' ? '' : (select?.value || ''); if (status) { status.textContent = ingredientStatus(name); status.className = `ingredient-stock ${ingredientStatusClass(name)}`; } };
+      const bindRow = row => {
+        const categorySelect = $('[data-ingredient-category]', row); const select = $('[data-ingredient-select]', row); if (!categorySelect || !select) return;
+        categorySelect.onchange = () => { const previousName = select.value; renderOptions(select, categorySelect.value, previousName && ingredientCategory(previousName) === categorySelect.value ? previousName : ''); select.dataset.previous = select.value; updateRow(row); };
+        select.dataset.previous = select.value;
+        select.onchange = () => {
+          if (select.value === '__custom__') {
+            const custom = window.prompt('输入新食材名称');
+            if (!custom?.trim()) { select.value = select.dataset.previous || ''; return; }
+            const name = addIngredientName(custom); const category = categorySelect.value || '其他'; setIngredientCategory(name, category); renderOptions(select, category, name); select.value = name;
+          }
+          select.dataset.previous = select.value; updateRow(row);
+        };
+        $('[data-remove-ingredient]', row).onclick = () => { if (root.querySelectorAll('[data-ingredient-row]').length > 1) row.remove(); else { categorySelect.value = ''; renderOptions(select, ''); $('[data-ingredient-amount]', row).value = ''; updateRow(row); } };
+        updateRow(row);
+      };
+      $$('[data-ingredient-row]', root).forEach(bindRow);
+      const add = $(addSelector); if (add) add.onclick = () => { root.insertAdjacentHTML('beforeend', ingredientRowHtml()); bindRow(root.lastElementChild); };
+    };
     const baseOpenAddModal = openAddModal;
     openAddModal = function() {
       baseOpenAddModal();
