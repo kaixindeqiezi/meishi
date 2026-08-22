@@ -22,4 +22,7 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /data-ingredient-select/);
   assert.match(html, /syncReceiptLotsToPantry/);
   assert.match(html, /ingredientStatusClass/);
+  assert.match(html, /INGREDIENT_CATEGORY_ORDER/);
+  assert.match(html, /pantry-group/);
+  assert.match(html, /id="pantry-category"/);
 });
