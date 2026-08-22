@@ -25,4 +25,8 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /INGREDIENT_CATEGORY_ORDER/);
   assert.match(html, /pantry-group/);
   assert.match(html, /id="pantry-category"/);
+  assert.match(html, /id="pantry-added-at"/);
+  assert.match(html, /id="pantry-shelf-life"/);
+  assert.match(html, /预计过期日期/);
+  assert.match(html, /pantryExpiryStatus/);
 });
