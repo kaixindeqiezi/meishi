@@ -183,6 +183,11 @@
     .pantry-group:first-child { margin-top: 0; }
     #pantry-cloud { display: grid; gap: 16px; }
     .pantry-group { width: 100%; }
+    .pantry-manage-list { display: grid; gap: 8px; max-height: 52vh; overflow: auto; }
+    .pantry-manage-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid var(--line); text-align: left; color: var(--ink); }
+    .pantry-manage-row span { min-width: 0; display: grid; gap: 4px; }
+    .pantry-manage-row small { color: var(--muted); font-size: 11px; }
+    .pantry-manage-row b { color: var(--tomato); font-size: 12px; white-space: nowrap; }
     .pantry-group h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; color: #6f6258; font-size: 12px; }
     .pantry-group h3 span { color: var(--muted); font-size: 10px; font-weight: 700; }
     .ingredient-cloud-group { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -788,6 +793,51 @@
       $('#label-manual').onclick=()=>{ closeModal(); openLabelReview({provider:false,report:{rawText:'',productName:'',ingredients:[],nutrition:{},standards:[],allergens:[],flags:[],confidence:0,summary:'请手动输入包装上的配料和营养信息。',disclaimer:'本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。'}}); };
       $('#label-scan-submit').onclick=async()=>{ if(!file) return toast('先选择或拍摄一张配料表图片'); const button=$('#label-scan-submit'); button.disabled=true; button.textContent='识别中…'; const form=new FormData(); form.append('image',await prepareScanFile(file)); try { const result=await receiptApi('/api/labels/scan',{method:'POST',body:form}); closeModal(); openLabelReview(result); } catch(error) { button.disabled=false; button.textContent='开始识别'; toast(error.message); } };
     }
+    const PANTRY_SHELF_PRESETS = {
+      '肉禽': [['1','1 天（冷藏）'],['3','3 天（冷藏）'],['7','7 天（冷冻）']],
+      '水产': [['1','1 天（冷藏）'],['2','2 天（冷藏）'],['7','7 天（冷冻）']],
+      '蔬菜': [['3','3 天（叶菜）'],['5','5 天（常见蔬菜）'],['7','7 天（根茎类）']],
+      '蛋奶豆制品': [['3','3 天（鲜豆制品）'],['7','7 天（冷藏）'],['14','14 天（包装未开封）']],
+      '主食': [['3','3 天（熟食冷藏）'],['7','7 天（冷藏）'],['30','30 天（干货）']],
+      '调味料': [['30','30 天（开封冷藏）'],['90','90 天（常温）'],['180','180 天（干货）']],
+      '水果': [['3','3 天（易熟水果）'],['7','7 天（常见水果）'],['14','14 天（耐储水果）']],
+      '其他': [['3','3 天'],['7','7 天'],['30','30 天']]
+    };
+    function pantryCategorySuggestion(name) {
+      const canonical = canonicalIngredientName(name);
+      if (/(虾|鱼|蟹|鱿鱼|贝|蛤|海鲜)/.test(canonical)) return '水产';
+      if (/(鸡|鸭|鹅|猪|牛|羊|排骨|培根|火腿|肉)/.test(canonical)) return '肉禽';
+      if (/(蛋|奶|豆腐|豆浆|酸奶|芝士|奶酪)/.test(canonical)) return '蛋奶豆制品';
+      if (/(米|面|意面|面包|馒头|饺子|粉|燕麦)/.test(canonical)) return '主食';
+      if (/(盐|糖|油|酱|醋|料酒|蚝油|胡椒|花椒|辣椒|味精|鸡精)/.test(canonical)) return '调味料';
+      if (/(苹果|香蕉|橙|橘|葡萄|草莓|梨|桃|西瓜|芒果|柠檬)/.test(canonical)) return '水果';
+      if (/(番茄|土豆|马铃薯|洋葱|胡萝卜|西兰花|菠菜|青椒|香菇|蘑菇|白菜|生菜|茄子|黄瓜|南瓜|玉米|葱|蒜|姜|芹菜|豆芽)/.test(canonical)) return '蔬菜';
+      return '其他';
+    }
+    function openPantryEntryModal(existing = null) {
+      const currentName = existing ? ingredientName(existing) : '';
+      const currentCategory = existing ? ingredientCategory(currentName) : pantryCategorySuggestion(currentName);
+      const currentAddedAt = existing?.addedAt || existing?.purchasedAt || todayDateInput();
+      const currentShelfLife = existing?.shelfLifeDays || '';
+      const currentStatus = existing && pantryIsExpiring(existing) ? 'expiring' : 'fresh';
+      const presets = PANTRY_SHELF_PRESETS[currentCategory] || PANTRY_SHELF_PRESETS['其他'];
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>${existing ? '编辑库存食材' : '加进家里的食材'}</h2><button class="close-button" data-close>×</button></div><p class="helper">点击食材后可以再次修改分类、加入日期和保存期限。</p><div class="field"><label>食材名称</label><input id="pantry-name" value="${escapeRecipeValue(currentName)}" placeholder="例如：西红柿" autofocus /></div><div class="field"><label>分类</label><select id="pantry-category">${INGREDIENT_CATEGORY_OPTIONS.map(category => `<option value="${category}" ${category === currentCategory ? 'selected' : ''}>${category}</option>`).join('')}</select><div class="helper" id="pantry-category-hint">系统建议：${pantryCategorySuggestion(currentName || currentCategory)} <button type="button" class="text-button" id="pantry-use-suggested">采用建议</button></div></div><div class="field"><label>加入日期</label><input id="pantry-added-at" type="date" value="${currentAddedAt}" /></div><div class="field"><label>保存期限（天）</label><select id="pantry-shelf-life-preset"><option value="">选择参考期限</option>${presets.map(([days,label]) => `<option value="${days}" ${String(days) === String(currentShelfLife) ? 'selected' : ''}>${label}</option>`).join('')}<option value="custom">自定义天数</option></select><input id="pantry-shelf-life" type="number" min="1" step="1" value="${currentShelfLife}" placeholder="例如：3、7、30" /><div class="helper">以上是冷藏/常温参考值，具体以食材包装和实际储存方式为准。</div></div><div class="field"><label>状态</label><select id="pantry-status"><option value="fresh" ${currentStatus === 'fresh' ? 'selected' : ''}>现在新鲜</option><option value="expiring" ${currentStatus === 'expiring' ? 'selected' : ''}>快过期，优先用掉</option></select></div><div class="helper" id="pantry-expiry-preview">填写保存期限后会自动计算过期日期。</div><div class="modal-actions"><button class="secondary-button" data-close>取消</button><button class="primary-button" id="save-pantry">${existing ? '保存修改' : '加入库存'}</button></div>`);
+      const nameInput = $('#pantry-name'); const categoryInput = $('#pantry-category'); const shelfPreset = $('#pantry-shelf-life-preset'); const shelfInput = $('#pantry-shelf-life'); const hint = $('#pantry-category-hint'); let categoryTouched = Boolean(existing);
+      const updateSuggestion = () => { const suggestion = pantryCategorySuggestion(nameInput.value.trim()); hint.innerHTML = `系统建议：${suggestion} <button type="button" class="text-button" id="pantry-use-suggested">采用建议</button>`; $('#pantry-use-suggested').onclick = () => { categoryInput.value = suggestion; categoryTouched = true; updateShelfPresets(); }; if (!categoryTouched && nameInput.value.trim()) { categoryInput.value = suggestion; updateShelfPresets(); } };
+      const updateShelfPresets = () => { const values = PANTRY_SHELF_PRESETS[categoryInput.value] || PANTRY_SHELF_PRESETS['其他']; shelfPreset.innerHTML = `<option value="">选择参考期限</option>${values.map(([days,label]) => `<option value="${days}">${label}</option>`).join('')}<option value="custom">自定义天数</option>`; if (shelfInput.value && values.some(([days]) => String(days) === String(shelfInput.value))) shelfPreset.value = shelfInput.value; };
+      const updateExpiryPreview = () => { const date = addDaysToDate($('#pantry-added-at').value, $('#pantry-shelf-life').value); $('#pantry-expiry-preview').textContent = date ? `预计过期日期：${date}` : '请选择或填写保存期限后计算过期日期。'; };
+      nameInput.oninput = updateSuggestion; categoryInput.onchange = () => { categoryTouched = true; updateShelfPresets(); updateExpiryPreview(); }; shelfPreset.onchange = () => { if (shelfPreset.value !== 'custom' && shelfPreset.value) shelfInput.value = shelfPreset.value; if (shelfPreset.value === 'custom') shelfInput.focus(); updateExpiryPreview(); }; $('#pantry-added-at').oninput = updateExpiryPreview; shelfInput.oninput = updateExpiryPreview; $('#pantry-use-suggested').onclick = () => { categoryInput.value = pantryCategorySuggestion(nameInput.value.trim()); categoryTouched = true; updateShelfPresets(); }; updateShelfPresets(); updateExpiryPreview();
+      $('#save-pantry').onclick = () => { const name = nameInput.value.trim(); const addedAt = $('#pantry-added-at').value || todayDateInput(); const shelfLifeDays = Number(shelfInput.value); if (!name) return toast('先写下食材名称'); if (!Number.isFinite(shelfLifeDays) || shelfLifeDays < 1) return toast('请选择或填写保存期限（天）'); const category = categoryInput.value || pantryCategorySuggestion(name); addIngredientName(name); setIngredientCategory(name, category); const next = {name, addedAt, shelfLifeDays, expiryDate:addDaysToDate(addedAt, shelfLifeDays), expiring:$('#pantry-status').value === 'expiring'}; if (existing) Object.assign(existing, next); else state.pantry.push(next); persist(); renderAll(); closeModal(); toast(`已保存 ${name}，预计 ${next.expiryDate} 过期`); };
+    }
+    openPantryModal = () => openPantryEntryModal();
+    function openPantryManageModal() {
+      openModal(`<div class="modal-handle"></div><div class="modal-head"><h2>编辑我的食材</h2><button class="close-button" data-close>×</button></div><p class="helper">选择一项即可修改分类、加入日期和保存期限。</p><div class="pantry-manage-list">${state.pantry.length ? state.pantry.map((item, index) => `<button type="button" class="pantry-manage-row" data-manage-pantry="${index}"><span><strong>${escapeRecipeValue(ingredientName(item))}</strong><small>${ingredientCategory(ingredientName(item))} · ${pantryExpiryLabel(item)}</small></span><b>编辑</b></button>`).join('') : '<div class="empty">还没有库存食材。</div>'}</div><div class="modal-actions"><button class="secondary-button" data-close>关闭</button><button class="primary-button" id="pantry-manage-add">＋ 添加食材</button></div>`);
+      $$('[data-manage-pantry]').forEach(button => button.onclick = () => { const item = state.pantry[Number(button.dataset.managePantry)]; if (!item) return; closeModal(); openPantryEntryModal(item); });
+      $('#pantry-manage-add').onclick = () => { closeModal(); openPantryEntryModal(); };
+    }
+    document.addEventListener('click', event => { const target = event.target instanceof HTMLElement ? event.target.closest('[data-pantry-name]') : null; if (!target) return; event.preventDefault(); event.stopImmediatePropagation(); const name = target.dataset.pantryName; const item = state.pantry.find(entry => ingredientName(entry) === name); if (item) openPantryEntryModal(item); }, true);
+    const pantryManageButton = $('#screen-pantry .section-head .text-button'); if (pantryManageButton) pantryManageButton.dataset.action = 'pantry-manage';
+    document.addEventListener('click', event => { const target = event.target instanceof HTMLElement ? event.target.closest('[data-action="pantry-manage"]') : null; if (!target) return; event.preventDefault(); event.stopImmediatePropagation(); openPantryManageModal(); }, true);
     ingredientRowHtml = function(item = {}) {
       const name = ingredientName(item);
       const amount = typeof item === 'string' ? '适量' : String(item?.amount || '适量');
