@@ -38,6 +38,10 @@ test('food flow page contains one compilable inline script and shopping screen',
   assert.match(html, /pantry-shelf-life-preset/);
   assert.match(html, /data-manage-pantry/);
   assert.match(html, /pantryCategorySuggestion/);
+  assert.match(html, /openProfileSettingsModal/);
+  assert.match(html, /profile-settings-button/);
+  assert.match(html, /foodflow-profile/);
+  assert.match(html, /pantry-receipt-scan.*remove/);
   assert.match(html, /预计过期日期/);
   assert.match(html, /pantryExpiryStatus/);
 });
