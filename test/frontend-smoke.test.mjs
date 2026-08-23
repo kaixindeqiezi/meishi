@@ -10,6 +10,10 @@ test('food flow page contains one compilable inline script and shopping screen',
   new vm.Script(scripts[0][1], { filename: 'designs/food-flow/index.html' });
   assert.match(html, /id="screen-shopping"/);
   assert.match(html, /id="receipt-scan-button"/);
+  assert.match(html, /moveLotsToPantry/);
+  assert.match(html, /openConsumeLotModal/);
+  assert.match(html, /remainingQuantity/);
+  assert.match(html, /data-field="unitPrice"/);
   assert.match(html, /id="receipt-gallery"/);
   assert.match(html, /AbortController/);
   assert.match(html, /图片太大，请压缩后重试/);

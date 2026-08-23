@@ -3,7 +3,11 @@ import crypto from 'node:crypto';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNIT_ALIASES = new Map([
   ['公斤', 'kg'], ['千克', 'kg'], ['kg', 'kg'], ['斤', 'jin'], ['克', 'g'], ['g', 'g'],
-  ['毫升', 'ml'], ['ml', 'ml'], ['升', 'l'], ['l', 'l'], ['个', 'each'], ['袋', 'pack'], ['盒', 'pack']
+  ['毫升', 'ml'], ['ml', 'ml'], ['升', 'l'], ['l', 'l'], ['个', 'each'], ['只', 'each'], ['枚', 'each'], ['袋', 'pack'], ['包', 'pack'], ['盒', 'pack']
+]);
+const UNIT_FACTORS = new Map([
+  ['kg', { baseUnit: 'kg', factor: 1 }], ['jin', { baseUnit: 'kg', factor: 0.5 }], ['g', { baseUnit: 'kg', factor: 0.001 }],
+  ['l', { baseUnit: 'l', factor: 1 }], ['ml', { baseUnit: 'l', factor: 0.001 }], ['each', { baseUnit: 'each', factor: 1 }], ['pack', { baseUnit: 'pack', factor: 1 }]
 ]);
 const RECEIPT_NOISE = /^(合\s*计|总\s*计|应\s*付|实\s*付|支付|金额|找\s*零|优惠|折扣|现金|微信|支付宝|收银员|小票|商品|数量|单价|欢迎光临|谢谢惠顾|码洋|会员|订单|流水)/i;
 
@@ -15,6 +19,7 @@ export function moneyToCents(value) {
   return Number.isFinite(number) ? Math.round(number * 100) : null;
 }
 export function normalizeUnit(value) { return UNIT_ALIASES.get(String(value || '').trim().toLowerCase()) || String(value || '').trim().toLowerCase() || null; }
+function normalizedUnitInfo(unit) { return UNIT_FACTORS.get(unit) || { baseUnit: unit || null, factor: 1 }; }
 export function normalizeName(value, db) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -101,18 +106,21 @@ export function parseReceiptText(rawText) {
 
 export function normalizeItem(item, db, manuallyEdited = false) {
   const rawName = String(item.rawName || item.name || '').trim();
-  const quantity = Number(item.quantity);
+  const rawQuantity = Number(item.quantity);
   const lineTotal = moneyToCents(item.lineTotal ?? item.total);
   const suppliedUnitPrice = moneyToCents(item.unitPrice ?? item.unit_price);
-  const unit = normalizeUnit(item.unit);
-  const unitPrice = suppliedUnitPrice ?? (lineTotal !== null && Number.isFinite(quantity) && quantity > 0 ? Math.round(lineTotal / quantity) : null);
+  const rawUnit = normalizeUnit(item.unit); const unitInfo = normalizedUnitInfo(rawUnit);
+  const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.round(rawQuantity * unitInfo.factor * 1000) / 1000 : null;
+  const unit = unitInfo.baseUnit;
+  const unitPrice = suppliedUnitPrice !== null && Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.round(suppliedUnitPrice / unitInfo.factor) : lineTotal !== null && quantity ? Math.round(lineTotal / quantity) : null;
+  const normalizedLineTotal = lineTotal ?? (suppliedUnitPrice !== null && Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.round(suppliedUnitPrice * rawQuantity) : null);
   return {
     rawName,
     canonicalName: normalizeName(rawName, db),
     quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : null,
     unit,
     unitPriceCents: unitPrice,
-    lineTotalCents: lineTotal,
+    lineTotalCents: normalizedLineTotal,
     confidence: Math.max(0, Math.min(100, Number(item.confidence ?? 0))),
     manuallyEdited: manuallyEdited ? 1 : 0
   };
@@ -147,8 +155,9 @@ export function buildPriceTrends(db, deviceId, ingredient = '', days = 90) {
     WHERE r.device_id = ? AND r.status = 'confirmed' AND r.purchased_at >= ? AND ri.unit_price_cents IS NOT NULL
     ${ingredient ? 'AND ri.canonical_name = ?' : ''} ORDER BY r.purchased_at ASC`).all(...(ingredient ? [deviceId, since, ingredient] : [deviceId, since]));
   const grouped = new Map();
-  rows.forEach(row => { const key = row.canonical_name; if (!grouped.has(key)) grouped.set(key, []); grouped.get(key).push(row); });
-  return [...grouped].map(([name, observations]) => {
+  rows.forEach(row => { const unitInfo = normalizedUnitInfo(normalizeUnit(row.unit)); const comparable = { ...row, unit: unitInfo.baseUnit || row.unit, unit_price_cents: row.unit_price_cents === null ? null : Math.round(row.unit_price_cents / unitInfo.factor) }; const key = `${row.canonical_name}|${comparable.unit || ''}`; if (!grouped.has(key)) grouped.set(key, []); grouped.get(key).push(comparable); });
+  return [...grouped].map(([nameWithUnit, observations]) => {
+    const name = observations[0].canonical_name;
     const prices = observations.map(row => row.unit_price_cents);
     const latest = observations.at(-1);
     const average = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
@@ -162,7 +171,7 @@ export function buildPriceTrends(db, deviceId, ingredient = '', days = 90) {
 }
 
 export function listLots(db, deviceId) {
-  return db.prepare(`SELECT id, canonical_name AS ingredient, display_name AS displayName, quantity, unit, purchased_at AS purchasedAt, source_receipt_id AS sourceReceiptId, status,
+  return db.prepare(`SELECT id, canonical_name AS ingredient, display_name AS displayName, quantity, remaining_quantity AS remainingQuantity, unit, purchased_at AS purchasedAt, source_receipt_id AS sourceReceiptId, status,
     CASE WHEN purchased_at IS NULL THEN NULL ELSE MAX(0, CAST(julianday('now', 'localtime') - julianday(purchased_at) AS INTEGER)) END AS storedDays
     FROM pantry_lots WHERE device_id = ? ORDER BY status = 'in_stock' DESC, purchased_at ASC`).all(deviceId);
 }

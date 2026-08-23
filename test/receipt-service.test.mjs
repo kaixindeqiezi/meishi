@@ -21,6 +21,16 @@ test('normalizes aliases, money and units', () => {
   db.close(); fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('converts grams to kilograms and derives comparable unit price', () => {
+  const { db, dir } = testDb();
+  const draft = normalizeDraft({ storeName: '测试', purchaseDate: '2026-08-01', items: [{ name: '番茄', quantity: '500', unit: 'g', lineTotal: '6' }] }, db);
+  assert.equal(draft.items[0].quantity, 0.5);
+  assert.equal(draft.items[0].unit, 'kg');
+  assert.equal(draft.items[0].unitPriceCents, 1200);
+  assert.equal(draft.items[0].lineTotalCents, 600);
+  db.close(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('stored days never becomes negative', () => {
   assert.equal(dateDiffDays('2026-08-01', '2026-08-04'), 3);
   assert.equal(dateDiffDays('2026-08-05', '2026-08-04'), 0);

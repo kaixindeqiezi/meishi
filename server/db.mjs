@@ -38,6 +38,7 @@ export function createDatabase(filename = process.env.FOODFLOW_DB_PATH || './dat
       canonical_name TEXT NOT NULL,
       display_name TEXT NOT NULL,
       quantity REAL,
+      remaining_quantity REAL,
       unit TEXT,
       purchased_at TEXT,
       source_receipt_id TEXT REFERENCES receipts(id) ON DELETE SET NULL,
@@ -62,6 +63,8 @@ export function createDatabase(filename = process.env.FOODFLOW_DB_PATH || './dat
     CREATE INDEX IF NOT EXISTS idx_lots_device_status ON pantry_lots(device_id, status);
     CREATE INDEX IF NOT EXISTS idx_labels_device_date ON label_scans(device_id, scanned_at);
   `);
+  try { db.exec('ALTER TABLE pantry_lots ADD COLUMN remaining_quantity REAL'); } catch (error) { if (!/duplicate column name/i.test(String(error?.message || error))) throw error; }
+  db.exec("UPDATE pantry_lots SET remaining_quantity = quantity WHERE remaining_quantity IS NULL AND status = 'in_stock'");
   const aliases = [
     ['西红柿', '番茄'], ['小番茄', '番茄'], ['土豆', '马铃薯'], ['青椒', '青辣椒'],
     ['猪肉', '猪肉'], ['猪瘦肉', '猪肉'], ['鸡胸', '鸡胸肉'], ['鸡胸肉', '鸡胸肉'],

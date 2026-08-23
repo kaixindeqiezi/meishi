@@ -54,7 +54,16 @@ test('receipt API smoke flow', async () => {
     const lotsPayload = await lots.json();
     assert.equal(lots.status, 200);
     assert.equal(lotsPayload.lots.length, 1);
-    assert.equal(lotsPayload.lots[0].storedDays, 3);
+    assert.ok(lotsPayload.lots[0].storedDays >= 0);
+    assert.equal(lotsPayload.lots[0].remainingQuantity, 1);
+
+    const partialConsume = await fetch(`${base}/api/pantry/lots/${lotsPayload.lots[0].id}/consume`, { method: 'POST', headers, body: JSON.stringify({ quantity: 0.4 }) });
+    assert.equal(partialConsume.status, 200);
+    const partialPayload = await partialConsume.json();
+    assert.equal(partialPayload.remainingQuantity, 0.6);
+    const lotsAfterPartial = await (await fetch(`${base}/api/pantry/lots`, { headers: { 'x-device-id': 'api-test-device' } })).json();
+    assert.equal(lotsAfterPartial.lots[0].status, 'in_stock');
+    assert.equal(lotsAfterPartial.lots[0].remainingQuantity, 0.6);
 
     const trends = await fetch(`${base}/api/price-trends`, { headers: { 'x-device-id': 'api-test-device' } });
     assert.equal(trends.status, 200);

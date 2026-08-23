@@ -145,12 +145,12 @@ function confirmReceipt(input, deviceId) {
   const receiptId = id('receipt');
   const insertReceipt = db.prepare(`INSERT INTO receipts(id, device_id, store_name, purchased_at, scanned_at, total_cents, currency, ocr_confidence, raw_text, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')`);
   const insertItem = db.prepare(`INSERT INTO receipt_items(id, receipt_id, raw_name, canonical_name, quantity, unit, unit_price_cents, line_total_cents, confidence, manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const insertLot = db.prepare(`INSERT INTO pantry_lots(id, device_id, canonical_name, display_name, quantity, unit, purchased_at, source_receipt_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'in_stock')`);
+  const insertLot = db.prepare(`INSERT INTO pantry_lots(id, device_id, canonical_name, display_name, quantity, remaining_quantity, unit, purchased_at, source_receipt_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock')`);
   withTransaction(db, () => {
     insertReceipt.run(receiptId, deviceId, draft.storeName, draft.purchasedAt, new Date().toISOString(), draft.totalCents, draft.currency, draft.ocrConfidence, draft.rawText);
     draft.items.forEach(item => {
       insertItem.run(id('item'), receiptId, item.rawName, item.canonicalName, item.quantity, item.unit, item.unitPriceCents, item.lineTotalCents, item.confidence, item.manuallyEdited);
-      if (item.canonicalName) insertLot.run(id('lot'), deviceId, item.canonicalName, item.rawName || item.canonicalName, item.quantity, item.unit, draft.purchasedAt, receiptId);
+      if (item.canonicalName) insertLot.run(id('lot'), deviceId, item.canonicalName, item.rawName || item.canonicalName, item.quantity, item.quantity, item.unit, draft.purchasedAt, receiptId);
     });
   });
   return receiptView(receiptId, deviceId);
@@ -271,9 +271,20 @@ async function handle(req, res) {
   }
   const consumeMatch = url.pathname.match(/^\/api\/pantry\/lots\/([^/]+)\/consume$/);
   if (req.method === 'POST' && consumeMatch) {
-    const deviceId = deviceIdFromRequest(req); const result = db.prepare(`UPDATE pantry_lots SET status = 'consumed', consumed_at = ? WHERE id = ? AND device_id = ? AND status = 'in_stock'`).run(new Date().toISOString(), consumeMatch[1], deviceId);
-    if (!result.changes) return sendJson(res, 404, { ok: false, error: 'lot_not_found' });
-    return sendJson(res, 200, { ok: true });
+    const deviceId = deviceIdFromRequest(req); let input = {};
+    try { input = JSON.parse(await readBody(req)); } catch { input = {}; }
+    const lot = db.prepare(`SELECT id, quantity, remaining_quantity AS remainingQuantity, unit, status FROM pantry_lots WHERE id = ? AND device_id = ?`).get(consumeMatch[1], deviceId);
+    if (!lot) return sendJson(res, 404, { ok: false, error: 'lot_not_found', message: '库存批次不存在' });
+    if (lot.status !== 'in_stock') return sendJson(res, 409, { ok: false, error: 'lot_already_consumed', message: '这批食材已经用完' });
+    const remainingValue = lot.remainingQuantity ?? lot.quantity;
+    const remaining = remainingValue === null || remainingValue === undefined ? null : Number(remainingValue);
+    const requested = input.quantity === undefined || input.quantity === '' ? remaining : Number(input.quantity);
+    if (!Number.isFinite(requested) || requested <= 0) return sendJson(res, 400, { ok: false, error: 'invalid_quantity', message: '请输入大于 0 的用量' });
+    if (Number.isFinite(remaining) && requested > remaining + 1e-9) return sendJson(res, 400, { ok: false, error: 'quantity_exceeds_remaining', message: `本批次最多还剩 ${remaining}${lot.unit || ''}` });
+    const nextRemaining = Number.isFinite(remaining) ? Math.max(0, Math.round((remaining - requested) * 1000) / 1000) : 0;
+    const status = nextRemaining <= 1e-9 ? 'consumed' : 'in_stock';
+    db.prepare(`UPDATE pantry_lots SET remaining_quantity = ?, status = ?, consumed_at = CASE WHEN ? = 'consumed' THEN ? ELSE consumed_at END WHERE id = ? AND device_id = ? AND status = 'in_stock'`).run(nextRemaining, status, status, new Date().toISOString(), consumeMatch[1], deviceId);
+    return sendJson(res, 200, { ok: true, consumedQuantity: requested, remainingQuantity: nextRemaining, status });
   }
   if (req.method === 'GET' && url.pathname === '/api/price-trends') {
     const deviceId = deviceIdFromRequest(req); const trends = buildPriceTrends(db, deviceId, url.searchParams.get('ingredient') || '', url.searchParams.get('days') || 90);
