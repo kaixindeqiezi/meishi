@@ -756,18 +756,41 @@
       } catch (error) { toast(error.message || '小票识别失败，请重试'); button.disabled = false; button.textContent = '开始识别'; }
     }, true);
     const labelState = {labels:[], loaded:false};
+    const labelPortionReports = new Map();
+    let labelReportSequence = 0;
+    function labelPortionHtml(report) {
+      const p = report.portion || {};
+      const colors = {red:['#fff0ee','#9f3028','红灯 · 建议减量'],yellow:['#fff7de','#795d13','黄灯 · 注意份量'],green:['#eaf6ee','#28623c','绿灯 · 当前已知项目负担较低'],gray:['#f1f1f1','#555','信息不足 · 暂不分级']};
+      const [background,color,title] = colors[p.color] || colors.gray;
+      const names = {energy:'能量',protein:'蛋白质',fat:'脂肪',saturatedFat:'饱和脂肪',transFat:'反式脂肪',carbohydrate:'碳水化合物',sugar:'总糖',addedSugar:'添加糖',sodium:'钠',fiber:'膳食纤维'};
+      return `<div style="padding:12px;border-radius:12px;background:${background};color:${color}"><strong>${title}</strong><p class="helper">${receiptHtml(p.valid ? `本次按 ${p.quantity}${p.unit === 'serving' ? '份' : p.unit} 计算` : p.message || '请补充营养表')}</p></div>${p.valid ? `<div class="label-nutrition">${Object.entries(p.nutrients || {}).map(([key,item])=>`<div class="nutrition-cell"><b>${receiptHtml(item.value)} ${receiptHtml(item.unit)}</b><span>${names[key] || key}${item.nrvPercent == null ? ' · NRV未识别/未规定' : ` · 标签NRV约 ${receiptHtml(item.nrvPercent)}%`}</span></div>`).join('')}</div>${(p.metrics || []).map(m=>`<p class="helper">${receiptHtml(m.name)}：${receiptHtml(m.percent)}% · ${receiptHtml(m.source)}</p>`).join('')}${(p.budgets || []).map(b=>`<p class="helper">${receiptHtml(b)}</p>`).join('')}${(p.ceilings || []).length ? `<div class="label-alert"><strong>想给其他餐留出余量？</strong>${p.ceilings.map(c=>`若把本食品每天的${receiptHtml(c.nutrient)}预算设为${receiptHtml(c.budget)}，对应食用量约不超过 ${receiptHtml(c.quantity)}${c.unit === 'serving' ? '份' : receiptHtml(c.unit)}。`).join('<br/>')}<br/>这是本程序自定的20%预算示例，不是官方每日食用上限、安全限量或建议吃满的量；其他餐还要合并计算。</div>` : '<p class="helper">缺少明确含量，暂不能给出可靠的产品克数建议。</p>'}` : ''}<p class="helper">${receiptHtml(p.note || '未识别计量基准，不自动假设每100克。')}</p><p class="helper">缺失营养项不等于零；蛋白质、纤维未参与负担灯。请先核对OCR与包装原文。</p>`;
+    }
+    document.addEventListener('click', async event => {
+      const button = event.target.closest('[data-label-calculate]'); if (!button) return;
+      const root = button.closest('[data-label-portion]'); const report = labelPortionReports.get(root.dataset.labelPortion); if (!report) return;
+      const quantity = Number(root.querySelector('[data-label-quantity]').value); const unit = root.querySelector('[data-label-unit]').value;
+      if (!(quantity > 0) || !Number.isFinite(quantity)) return toast('请输入有效的食用量');
+      button.disabled = true;
+      try { const response = await receiptApi('/api/labels/scan-text', {method:'POST', body:JSON.stringify({rawText:report.rawText, portion:{quantity,unit}})}); root.querySelector('[data-label-result]').innerHTML = labelPortionHtml(response.report); }
+      catch(error) { toast(error.message); } finally { button.disabled = false; }
+    });
     function labelReportHtml(label) {
       const report = label.report || label;
       const ingredients = report.ingredients || [];
       const nutritionEntries = Object.entries(report.nutrition || {});
-      const nutritionNames = {energy:'能量', protein:'蛋白质', fat:'脂肪', saturatedFat:'饱和脂肪', carbohydrate:'碳水化合物', sugar:'糖', sodium:'钠', fiber:'膳食纤维'};
+      const nutritionNames = {energy:'能量', protein:'蛋白质', fat:'脂肪', saturatedFat:'饱和脂肪', transFat:'反式脂肪', carbohydrate:'碳水化合物', sugar:'总糖', addedSugar:'添加糖', sodium:'钠', fiber:'膳食纤维'};
+      const reportId = String(++labelReportSequence); labelPortionReports.set(reportId, report);
+      if (labelPortionReports.size > 100) labelPortionReports.delete(labelPortionReports.keys().next().value);
+      const portion = report.portion || {}; const net = report.basis?.netQuantity;
       const alerts = [...(report.flags || [])];
       if (report.allergens?.length) alerts.unshift({title:'过敏原提示', detail:`识别到：${report.allergens.join('、')}。请以包装上的过敏原信息和自身情况为准。`});
       return `<article class="label-block"><div class="receipt-card-head"><div><h3>${receiptHtml(label.productName || report.productName || '未命名食品')}</h3><small>${label.scannedAt ? new Date(label.scannedAt).toLocaleString('zh-CN') : '刚刚识别'}${label.ocrConfidence ? ` · 识别置信度 ${label.ocrConfidence}%` : ''}</small></div><span class="mini-tag">${report.confidence ? '待人工确认' : '需补充文字'}</span></div><p class="helper" style="margin:8px 0 0">${receiptHtml(report.summary || '请检查识别结果')}</p></article>
-        <article class="label-block"><h3>配料顺序</h3>${ingredients.length ? `<div class="label-ingredient-list">${ingredients.map(item=>`<span class="label-ingredient ${item.emphasis ? 'emphasis' : ''}">${receiptHtml(item.name)}</span>`).join('')}</div><small class="helper">前面的配料通常代表相对用量更高；这不是单独的营养或安全结论。</small>` : '<div class="empty">未识别到配料，请在校对时补充。</div>'}</article>
+        <article class="label-block"><h3>主要内容 · 排在前面的配料</h3><p class="helper">${receiptHtml((report.mainIngredients || []).join('、') || '请补充完整配料表')}</p>${ingredients.length ? `<div class="label-ingredient-list">${ingredients.map(item=>`<span class="label-ingredient ${item.emphasis ? 'emphasis' : ''}">${receiptHtml(item.name)}</span>`).join('')}</div><small class="helper">前面的配料通常代表相对用量更高，但存在标示规则例外；不是准确占比或安全结论。</small>` : '<div class="empty">未识别到配料，请在校对时补充。</div>'}</article>
+        <article class="label-block"><h3>添加剂解读 · 哪些是防腐剂？</h3>${report.additives?.length ? report.additives.map(a=>`<div class="label-alert" style="margin-bottom:8px"><strong>${receiptHtml(a.name)} · ${receiptHtml(a.category)}</strong>${receiptHtml(a.purpose)}<br/>关注：${receiptHtml(a.caution)}</div>`).join('') : '<p class="helper">常见词典未匹配到明确名称，不等于不含添加剂。请核对完整配料。</p>'}<p class="helper">${receiptHtml(report.additiveNote || '')}</p><p class="helper">没有证据仅凭名字把某种添加剂判为“有毒食品”。合规使用、超量使用、个体过敏是不同问题。</p></article>
+        <article class="label-block" data-label-portion="${reportId}"><h3>吃多少 · NRV换算与营养参考灯</h3><p class="helper">标签基准：${receiptHtml(report.basis?.label || '未识别')}。${net ? `净含量：${receiptHtml(net.value)}${receiptHtml(net.unit)}（请核对组合装/固液混合包装）` : '净含量未识别，整包需手动输入。'}</p><div class="field"><label>这次实际吃多少？整包可输入上面的净含量</label><input type="number" min="0.1" step="any" data-label-quantity value="${receiptHtml(portion.quantity || 100)}" /><select data-label-unit><option value="g" ${portion.unit === 'g' ? 'selected' : ''}>克 g</option><option value="ml" ${portion.unit === 'ml' ? 'selected' : ''}>毫升 ml</option>${report.basis?.kind === 'serving' ? `<option value="serving" ${portion.unit === 'serving' ? 'selected' : ''}>份</option>` : ''}</select></div><button class="secondary-button" data-label-calculate>按这个份量重新计算</button><div data-label-result style="margin-top:12px">${labelPortionHtml(report)}</div><p class="helper">${receiptHtml(report.dailyGuidance || '')}</p></article>
         <article class="label-block"><h3>营养成分</h3>${nutritionEntries.length ? `<div class="label-nutrition">${nutritionEntries.map(([key,item])=>`<div class="nutrition-cell"><b>${receiptHtml(item.value)} ${receiptHtml(item.unit || '')}</b><span>${nutritionNames[key] || key} · ${item.basis === 'per_serving_or_label' ? '按标签/每份' : '按每 100g/100ml'}</span></div>`).join('')}</div>` : '<div class="empty">未识别到营养数值，请拍清“营养成分表”。</div>'}</article>
         ${alerts.length ? `<article class="label-block"><h3>需要留意</h3>${alerts.map(alert=>`<div class="label-alert"><strong>${receiptHtml(alert.title || '提示')}</strong>${receiptHtml(alert.detail || '')}</div>`).join('')}</article>` : ''}
-        <article class="label-block"><h3>标准与依据</h3>${report.standards?.length ? report.standards.map(standard=>`<div class="label-standard"><div><strong>${receiptHtml(standard.code)}</strong><small>${receiptHtml(standard.title)}<br/>${receiptHtml(standard.status)}</small></div><a href="${receiptHtml(standard.url)}" target="_blank" rel="noreferrer">查看来源 ↗</a></div>`).join('') : '<div class="empty">未识别到执行标准号，可手动查看包装上的标准编号。</div>'}</article>
+        <article class="label-block"><h3>标准与依据</h3>${report.standards?.length ? report.standards.map(standard=>`<div class="label-standard"><div><strong>${receiptHtml(standard.code)}</strong><small>${receiptHtml(standard.title)}<br/>${receiptHtml(standard.status)}</small></div><a href="${receiptHtml(standard.url)}" target="_blank" rel="noreferrer">查看来源 ↗</a></div>`).join('') : '<div class="empty">未识别到执行标准号，可手动查看包装上的标准编号。</div>'}${(report.sources || []).map(s=>`<div class="label-standard"><div><strong>${receiptHtml(s.title)}</strong><small>${receiptHtml(s.detail)}<br/>核对日期：${receiptHtml(s.checkedAt)}</small></div><a href="${receiptHtml(s.url)}" target="_blank" rel="noreferrer">来源 ↗</a></div>`).join('')}</article>
         <article class="receipt-note">${receiptHtml(report.disclaimer || '本结果用于辅助理解包装信息，不是医疗诊断、食品检测或法律合规结论。')}</article>`;
     }
     function renderLabelData() {

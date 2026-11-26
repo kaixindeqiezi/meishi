@@ -62,7 +62,7 @@ test('price advice waits for three comparable observations', () => {
   const insertReceipt = db.prepare(`INSERT INTO receipts(id, device_id, store_name, purchased_at, scanned_at, total_cents, status) VALUES (?, ?, ?, ?, ?, ?, 'confirmed')`);
   const insertItem = db.prepare(`INSERT INTO receipt_items(id, receipt_id, raw_name, canonical_name, quantity, unit, unit_price_cents, line_total_cents, confidence) VALUES (?, ?, ?, '番茄', 1, 'kg', ?, ?, 90)`);
   withTransaction(db, () => {
-    [['r1','2026-06-01',800],['r2','2026-07-01',1000],['r3','2026-08-01',600]].forEach(([id,date,price]) => { insertReceipt.run(id, 'device', '店', date, date, price); insertItem.run(`i-${id}`, id, '番茄', price, price); });
+    [['r1',60,800],['r2',30,1000],['r3',0,600]].forEach(([id,daysAgo,price]) => { const date = new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0,10); insertReceipt.run(id, 'device', '店', date, date, price); insertItem.run(`i-${id}`, id, '番茄', price, price); });
   });
   const [trend] = buildPriceTrends(db, 'device', '番茄', 90);
   assert.equal(trend.sampleCount, 3);

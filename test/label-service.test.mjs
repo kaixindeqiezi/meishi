@@ -2,6 +2,48 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeLabel, parseLabelText } from '../server/label-service.mjs';
 
+test('scales label NRV by grams and whole package without inventing sugar NRV', () => {
+  const raw = '饼干\n配料表：小麦粉、白砂糖、山梨酸钾、阿斯巴甜\n净含量：200g\n营养成分表 每100g\n脂肪 10g 17%\n饱和脂肪 3g 15%\n糖 8g\n钠 600mg 30%';
+  const half = analyzeLabel(raw, {quantity:50,unit:'g'});
+  assert.equal(half.portion.nutrients.sodium.nrvPercent, 15);
+  assert.equal(half.portion.nutrients.sodium.value, 300);
+  assert.equal(half.portion.color, 'yellow');
+  assert.equal(half.nutrition.sugar.nrvPercent, null);
+  assert.equal(half.nutrition.addedSugar, undefined);
+  assert.equal(half.basis.netQuantity.value, 200);
+  assert.equal(half.additives.find(a=>a.name === '山梨酸钾').category, '防腐剂');
+  assert.match(half.additives.find(a=>a.name === '阿斯巴甜').caution, /苯丙酮尿症/);
+  assert.equal(analyzeLabel(raw, {quantity:200,unit:'g'}).portion.nutrients.sodium.nrvPercent, 60);
+  assert.equal(analyzeLabel(raw, {quantity:200,unit:'ml'}).portion.valid, false);
+});
+
+test('serving basis, unknown and dual columns are handled conservatively', () => {
+  const raw = '营养成分表 每份（30g）\n脂肪 3g 5%\n钠 100mg 5%';
+  assert.equal(analyzeLabel(raw).portion.nutrients.sodium.value, 100);
+  assert.equal(analyzeLabel(raw,{quantity:60,unit:'g'}).portion.nutrients.sodium.value, 200);
+  assert.equal(analyzeLabel(raw,{quantity:2,unit:'serving'}).portion.nutrients.sodium.nrvPercent, 10);
+  assert.equal(analyzeLabel('营养成分表\n钠 100mg 5%').portion.valid, false);
+  assert.equal(analyzeLabel('营养成分表 每100g 每份（30g）\n钠 100mg 5% 30mg 2%').portion.valid, false);
+  assert.equal(analyzeLabel('营养成分表 每100ml\n蛋白质 30g 50%').portion.color, 'gray');
+});
+
+test('nutrition names do not borrow saturated fat and additive marketing is not detection', () => {
+  const r = analyzeLabel('配料表：水、白砂糖、不添加苯甲酸钠\n营养成分表 每100g\n饱和脂肪酸 8g 40%\n钠（mg）600 30%\n糖（乳糖）5g\n添加糖 1g\n蛋白质 30g 50%');
+  assert.equal(r.nutrition.fat, undefined);
+  assert.equal(r.nutrition.sugar.value, 5);
+  assert.equal(r.nutrition.addedSugar.value, 1);
+  assert.equal(r.nutrition.sodium.nrvPercent, 30);
+  assert.equal(r.additives.length, 0);
+  assert.equal(r.portion.color, 'red');
+});
+
+test('no additive quota or green health guarantee for missing information', () => {
+  const r = analyzeLabel('配料表：水、山梨酸钾');
+  assert.equal(r.portion.valid, false);
+  assert.match(r.additiveNote, /不能换算ADI/);
+  assert.ok(r.sources.length >= 4);
+});
+
 test('parses ingredients, nutrition, allergens, flags and standards from a label', () => {
   const raw = `全麦夹心饼干
 配料表：小麦粉、白砂糖、植物油、乳粉、食用香精

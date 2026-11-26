@@ -133,7 +133,8 @@ function receiptView(receiptId, deviceId) {
 function labelView(labelId, deviceId) {
   const row = db.prepare(`SELECT id, scanned_at AS scannedAt, product_name AS productName, raw_text AS rawText, report_json AS reportJson, ocr_confidence AS ocrConfidence FROM label_scans WHERE id = ? AND device_id = ?`).get(labelId, deviceId);
   if (!row) return null;
-  let report = {}; try { report = JSON.parse(row.reportJson); } catch {}
+  // Re-analyze saved raw text so existing records gain current explanations without rewriting user data.
+  const report = analyzeLabel(row.rawText || '');
   return { id: row.id, scannedAt: row.scannedAt, productName: row.productName, rawText: row.rawText, ocrConfidence: row.ocrConfidence, report };
 }
 
@@ -203,7 +204,7 @@ async function scanLabel(req, res) {
 
 async function scanLabelText(req, res) {
   const input = JSON.parse(await readBody(req));
-  const report = analyzeLabel(String(input.rawText || ''));
+  const report = analyzeLabel(String(input.rawText || ''), input.portion || {});
   return sendJson(res, 200, { ok: true, status: report.confidence ? 'needs_review' : 'needs_manual_review', provider: false, providerName: 'manual', message: report.summary, report });
 }
 

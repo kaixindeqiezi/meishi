@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { analyzeLabel } from '../server/label-service.mjs';
+
+test('label report renders additive knowledge, portion input and escaped source text', () => {
+  const html = fs.readFileSync(new URL('../designs/food-flow/index.html', import.meta.url), 'utf8');
+  const script = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i)[1];
+  const start = script.indexOf('const labelPortionReports =');
+  const end = script.indexOf('function renderLabelData()', start);
+  const context = {document:{addEventListener(){}},receiptHtml: value=>String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))};
+  vm.createContext(context);
+  vm.runInContext(script.slice(start,end),context);
+  const report = analyzeLabel('配料表：水、山梨酸钾\n净含量：200g\n营养成分表 每100g\n钠 600mg 30%');
+  const rendered = context.labelReportHtml({productName:'<img src=x onerror=alert(1)>',report});
+  assert.match(rendered,/防腐剂/);
+  assert.match(rendered,/data-label-calculate/);
+  assert.match(rendered,/红灯/);
+  assert.match(rendered,/标签NRV约 30%/);
+  assert.match(rendered,/不是官方每日食用上限/);
+  assert.match(rendered,/&lt;img/);
+  assert.doesNotMatch(rendered,/<img src=x/);
+});
 
 test('food flow page contains one compilable inline script and shopping screen', () => {
   const html = fs.readFileSync(new URL('../designs/food-flow/index.html', import.meta.url), 'utf8');

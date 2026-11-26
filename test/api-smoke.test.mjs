@@ -44,7 +44,11 @@ test('receipt API smoke flow', async () => {
     const labels = await fetch(`${base}/api/labels`, { headers: { 'x-device-id': 'api-test-device' } });
     assert.equal((await labels.json()).labels.length, 1);
 
-    const receipt = { storeName: '测试超市', purchaseDate: '2026-08-01', total: 12.5, items: [{ name: '西红柿', quantity: 1, unit: 'kg', lineTotal: 12.5, confidence: 90 }] };
+    const analysis = await fetch(`${base}/api/labels/scan-text`, {method:'POST',headers,body:JSON.stringify({rawText:'配料表：水、山梨酸钾\n营养成分表 每100g\n钠 600mg 30%',portion:{quantity:50,unit:'g'}})});
+    const report = (await analysis.json()).report;
+    assert.equal(report.portion.nutrients.sodium.nrvPercent, 15);
+    assert.equal(report.additives[0].category, '防腐剂');
+    const receipt = { storeName: '测试超市', purchaseDate: new Date().toISOString().slice(0,10), total: 12.5, items: [{ name: '西红柿', quantity: 1, unit: 'kg', lineTotal: 12.5, confidence: 90 }] };
     const confirm = await fetch(`${base}/api/receipts/confirm`, { method: 'POST', headers, body: JSON.stringify(receipt) });
     assert.equal(confirm.status, 201);
     const duplicate = await fetch(`${base}/api/receipts/confirm`, { method: 'POST', headers, body: JSON.stringify(receipt) });
