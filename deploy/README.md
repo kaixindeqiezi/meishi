@@ -44,7 +44,7 @@ Skill 的配置只保存主机、用户、端口、仓库、分支和远程目�
 
 ## Nginx 反向代理
 
-本项目的接口通过 `meishi.musclebank.cn` 代理到 `127.0.0.1:4320`。配置模板位于 `deploy/nginx/meishi.musclebank.cn.conf`；VPS 上安装证书后，将它复制到 `/etc/nginx/conf.d/`，执行 `nginx -t && systemctl reload nginx`。
+本项目的接口通过 `meishi.musclebank.cn` 代理到 `127.0.0.1:4321`（容器内仍为 4320）。宿主机 4320 已被 FRP 占用，不能用于此容器。Compose 仅绑定回环地址，并将数据库固定保存在 `/data/foodflow.sqlite`，映射到项目 `data` 目录。配置模板位于 `deploy/nginx/meishi.musclebank.cn.conf`；VPS 上安装证书后，将它复制到 `/etc/nginx/conf.d/`，执行 `nginx -t && systemctl reload nginx`。部署工具配置中的 `proxy.appPort` 也须设为 4321。
 
 部署完成后至少验证：
 

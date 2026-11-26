@@ -5,12 +5,14 @@ services:
       dockerfile: server/Dockerfile
     env_file:
       - ../.env
+    environment:
+      FOODFLOW_DB_PATH: /data/foodflow.sqlite
     volumes:
       - ../data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${FOODFLOW_HOST_PORT:-4320}:4320"
+      - "127.0.0.1:${FOODFLOW_HOST_PORT:-4321}:4320"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4320/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
