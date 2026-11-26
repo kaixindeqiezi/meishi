@@ -44,6 +44,13 @@ test('no additive quota or green health guarantee for missing information', () =
   assert.ok(r.sources.length >= 4);
 });
 
+test('recognizes NRV numeric column only when header identifies percent', () => {
+  const r = analyzeLabel('配料表：水\n营养成分表 每100g NRV%\n脂肪 10g 17\n钠 600mg 30');
+  assert.equal(r.nutrition.fat.nrvPercent, 17);
+  assert.equal(r.nutrition.sodium.nrvPercent, 30);
+  assert.equal(analyzeLabel('营养成分表 每100g\n钠 600mg 30').nutrition.sodium.nrvPercent, null);
+});
+
 test('parses ingredients, nutrition, allergens, flags and standards from a label', () => {
   const raw = `全麦夹心饼干
 配料表：小麦粉、白砂糖、植物油、乳粉、食用香精

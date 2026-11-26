@@ -62,7 +62,10 @@ function parseNutrition(text, basis) {
     const normalized = block.replace(new RegExp(`(${name})\\s*[（(](${unit})[）)]\\s*([0-9]+(?:\\.[0-9]+)?)`, 'gi'), '$1 $3 $2');
     const match = normalized.match(new RegExp(`${name}\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(${unit})(?:\\s*(\\d+(?:\\.\\d+)?)\\s*[%％])?`, 'i'));
     if (!match) continue;
-    nutrition[key] = { value: Number(match[1]), unit: key === 'energy' ? 'kJ' : ['sodium','calcium','iron'].includes(key) ? 'mg' : 'g', basis: basis.kind === 'unknown' ? 'unknown' : basis.kind === 'serving' ? 'per_serving_or_label' : 'per_100g_or_100ml', nrvPercent: ['sugar','addedSugar','transFat'].includes(key) || match[3] === undefined ? null : Number(match[3]), nrvSource: ['sugar','addedSugar','transFat'].includes(key) || match[3] === undefined ? null : 'label' };
+    // A bare numeric NRV column is allowed when the table header already carries %.
+    const bare = /NRV\s*[%％]|营养素参考值\s*[%％]/i.test(block) && normalized.match(new RegExp(`${name}\\s*[0-9]+(?:\\.[0-9]+)?\\s*(?:${unit})\\s+(\\d+(?:\\.\\d+)?)(?=\\s+(?:[\\u4e00-\\u9fff]|$)|$)`, 'i'));
+    const percent = ['sugar','addedSugar','transFat'].includes(key) ? null : match[3] !== undefined ? Number(match[3]) : bare ? Number(bare[1]) : null;
+    nutrition[key] = { value: Number(match[1]), unit: key === 'energy' ? 'kJ' : ['sodium','calcium','iron'].includes(key) ? 'mg' : 'g', basis: basis.kind === 'unknown' ? 'unknown' : basis.kind === 'serving' ? 'per_serving_or_label' : 'per_100g_or_100ml', nrvPercent: percent, nrvSource: percent == null ? null : 'label' };
   }
   return nutrition;
 }
@@ -101,7 +104,7 @@ export function parseLabelText(rawText = '') {
   const nutritionStart = lines.findIndex(line => /营养成分表|营养成分|能量/.test(line));
   const metadataStart = lines.findIndex((line, i) => i > ingredientStart && /营养成分|净含量|执行标准|生产日期|保质期|储存|贮存/.test(line));
   const end = metadataStart > ingredientStart ? metadataStart : nutritionStart > ingredientStart && ingredientStart >= 0 ? nutritionStart : lines.length;
-  const ingredientText = ingredientStart >= 0 ? lines.slice(ingredientStart, end).join(' ').replace(/^.*?配料表?[:：]?/,'') : '';
+  const ingredientText = ingredientStart >= 0 ? lines.slice(ingredientStart, end).join(' ').replace(/^.*?配料表?[:：]?/,'').split(/营养成分|净含量|执行标准|保质期|储存条件|贮存条件/)[0] : '';
   const ingredientTokens = ingredientText.split(/[、,，;；。]/).map(clean).filter(token => token && token.length <= 60).map((name, index) => ({ name, order: index + 1, emphasis: index < 3 }));
   const basis = labelBasis(text);
   const nutrition = parseNutrition(text, basis);
